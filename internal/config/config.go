@@ -4,6 +4,8 @@ package config
 type Config struct {
 	Server ServerConfig `yaml:"server" json:"server"`
 	Relay  RelayConfig  `yaml:"relay" json:"relay"`
+	Log    LogConfig    `yaml:"log" json:"log"`
+	UI     UIConfig     `yaml:"ui" json:"ui"`
 }
 
 // ServerConfig contains inbound protocol listener settings.
@@ -27,6 +29,22 @@ type RelayConfig struct {
 	KeepAliveSec   int `yaml:"keepalive_sec" json:"keepaliveSec"`
 }
 
+// LogConfig contains structured logging and rotation settings.
+type LogConfig struct {
+	Level      string `yaml:"level" json:"level"`
+	MaxSizeMB  int    `yaml:"max_size_mb" json:"maxSizeMb"`
+	MaxBackups int    `yaml:"max_backups" json:"maxBackups"`
+	Output     string `yaml:"output" json:"output"`
+}
+
+// UIConfig contains desktop UI preferences.
+type UIConfig struct {
+	Theme          string `yaml:"theme" json:"theme"`
+	Language       string `yaml:"language" json:"language"`
+	StartMinimized bool   `yaml:"start_minimized" json:"startMinimized"`
+	ShowTrayIcon   bool   `yaml:"show_tray_icon" json:"showTrayIcon"`
+}
+
 // Default returns a validated baseline configuration.
 func Default() Config {
 	return Config{
@@ -47,6 +65,18 @@ func Default() Config {
 			ReadTimeoutSec: 30,
 			MaxConnections: 1000,
 			KeepAliveSec:   15,
+		},
+		Log: LogConfig{
+			Level:      "info",
+			MaxSizeMB:  50,
+			MaxBackups: 3,
+			Output:     "both",
+		},
+		UI: UIConfig{
+			Theme:          "auto",
+			Language:       "zh-CN",
+			StartMinimized: false,
+			ShowTrayIcon:   true,
 		},
 	}
 }

@@ -14,12 +14,12 @@ import (
 
 // Status describes the current proxy server runtime state.
 type Status struct {
-	Running     bool      `json:"running"`
-	StartedAt   time.Time `json:"startedAt"`
-	SOCKS5Addr  string    `json:"socks5Addr"`
-	HTTPAddr    string    `json:"httpAddr"`
-	ActiveConns int64     `json:"activeConns"`
-	TotalConns  int64     `json:"totalConns"`
+	Running     bool   `json:"running"`
+	StartedAt   string `json:"startedAt"`
+	SOCKS5Addr  string `json:"socks5Addr"`
+	HTTPAddr    string `json:"httpAddr"`
+	ActiveConns int64  `json:"activeConns"`
+	TotalConns  int64  `json:"totalConns"`
 }
 
 // Server manages proxy listeners and active connections.
@@ -142,9 +142,13 @@ func (s *Server) Status() Status {
 	defer s.mu.RUnlock()
 
 	snapshot := s.collector.Snapshot()
+	var startedAt string
+	if !s.startedAt.IsZero() {
+		startedAt = s.startedAt.Format(time.RFC3339)
+	}
 	return Status{
 		Running:     s.running,
-		StartedAt:   s.startedAt,
+		StartedAt:   startedAt,
 		SOCKS5Addr:  s.socksAddr,
 		HTTPAddr:    s.httpAddr,
 		ActiveConns: snapshot.ActiveConns,
