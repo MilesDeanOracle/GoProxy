@@ -11,65 +11,90 @@ import (
 	"time"
 )
 
+const (
+	relayBufferSize    = 32 * 1024
+	statsFlushBytes    = 256 * 1024
+	statsFlushInterval = time.Second
+)
+
+var relayBufferPool = sync.Pool{
+	New: func() any {
+		return make([]byte, relayBufferSize)
+	},
+}
+
 func relay(ctx context.Context, client, target net.Conn, writeTimeout time.Duration, onUpload, onDownload func(int64)) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	var wg sync.WaitGroup
-	var errOnce sync.Once
 	var firstErr error
+	var ctxErr error
+	var closeOnce sync.Once
 
-	recordErr := func(err error) {
-		if err == nil || isExpectedCloseError(err) {
-			return
-		}
-		errOnce.Do(func() {
-			firstErr = err
-			cancel()
+	closeBoth := func() {
+		closeOnce.Do(func() {
 			closeConn(client)
 			closeConn(target)
 		})
 	}
 
-	wg.Add(2)
+	errCh := make(chan error, 2)
 	go func() {
-		defer wg.Done()
 		err := copyConn(target, client, writeTimeout, onUpload)
 		closeWrite(target)
-		recordErr(err)
+		errCh <- err
 	}()
 	go func() {
-		defer wg.Done()
 		err := copyConn(client, target, writeTimeout, onDownload)
 		closeWrite(client)
-		recordErr(err)
+		errCh <- err
 	}()
 
-	done := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(done)
-	}()
+	completed := 0
+	for completed < 2 {
+		select {
+		case err := <-errCh:
+			completed++
+			if err != nil && !isExpectedCloseError(err) && firstErr == nil {
+				firstErr = err
+				cancel()
+				closeBoth()
+			}
+		case <-ctx.Done():
+			if ctxErr == nil {
+				ctxErr = ctx.Err()
+				closeBoth()
+			}
+		}
+	}
 
-	select {
-	case <-ctx.Done():
-		closeConn(client)
-		closeConn(target)
-		<-done
-		if errors.Is(ctx.Err(), context.Canceled) && firstErr == nil {
-			return nil
-		}
-		if firstErr != nil {
-			return firstErr
-		}
-		return ctx.Err()
-	case <-done:
+	if firstErr != nil {
 		return firstErr
 	}
+	if ctxErr != nil && !errors.Is(ctxErr, context.Canceled) {
+		return ctxErr
+	}
+	return nil
 }
 
 func copyConn(dst, src net.Conn, writeTimeout time.Duration, onBytes func(int64)) error {
-	buf := make([]byte, 32*1024)
+	buf := relayBufferPool.Get().([]byte)
+	defer relayBufferPool.Put(buf)
+
+	var pendingBytes int64
+	lastFlush := time.Now()
+	flushBytes := func(force bool) {
+		if onBytes == nil || pendingBytes <= 0 {
+			return
+		}
+		if !force && pendingBytes < statsFlushBytes && time.Since(lastFlush) < statsFlushInterval {
+			return
+		}
+		onBytes(pendingBytes)
+		pendingBytes = 0
+		lastFlush = time.Now()
+	}
+	defer flushBytes(true)
 
 	for {
 		n, readErr := src.Read(buf)
@@ -80,7 +105,8 @@ func copyConn(dst, src net.Conn, writeTimeout time.Duration, onBytes func(int64)
 
 			written, writeErr := dst.Write(buf[:n])
 			if written > 0 && onBytes != nil {
-				onBytes(int64(written))
+				pendingBytes += int64(written)
+				flushBytes(false)
 			}
 			if writeErr != nil {
 				return writeErr
@@ -119,11 +145,13 @@ func closeConn(conn net.Conn) {
 
 func setTCPKeepAlive(conn net.Conn, period time.Duration) {
 	tcpConn, ok := conn.(*net.TCPConn)
-	if !ok || period <= 0 {
+	if !ok {
 		return
 	}
-	_ = tcpConn.SetKeepAlive(true)
-	_ = tcpConn.SetKeepAlivePeriod(period)
+	if period > 0 {
+		_ = tcpConn.SetKeepAlive(true)
+		_ = tcpConn.SetKeepAlivePeriod(period)
+	}
 }
 
 func clearDeadlines(conns ...net.Conn) {

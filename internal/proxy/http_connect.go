@@ -55,11 +55,8 @@ func (s *Server) handleHTTPTunnel(ctx context.Context, conn net.Conn, reader *bu
 	}
 
 	clearDeadlines(conn, target)
-	return relay(ctx, &bufferedConn{Conn: conn, reader: reader}, target, timeout, func(n int64) {
-		s.addConnUpload(conn, n)
-	}, func(n int64) {
-		s.addConnDownload(conn, n)
-	})
+	onUpload, onDownload := s.connByteCounters(conn)
+	return relay(ctx, &bufferedConn{Conn: conn, reader: reader}, target, timeout, onUpload, onDownload)
 }
 
 func (s *Server) handleHTTPForward(ctx context.Context, conn net.Conn, reader *bufio.Reader, req *http.Request, timeout time.Duration) error {
@@ -93,11 +90,8 @@ func (s *Server) handleHTTPForward(ctx context.Context, conn net.Conn, reader *b
 		return fmt.Errorf("write forwarded http request: %w", err)
 	}
 
-	return relay(ctx, &bufferedConn{Conn: conn, reader: reader}, target, timeout, func(n int64) {
-		s.addConnUpload(conn, n)
-	}, func(n int64) {
-		s.addConnDownload(conn, n)
-	})
+	onUpload, onDownload := s.connByteCounters(conn)
+	return relay(ctx, &bufferedConn{Conn: conn, reader: reader}, target, timeout, onUpload, onDownload)
 }
 
 func (s *Server) dialProxyTarget(ctx context.Context, targetAddr string) (net.Conn, error) {

@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"runtime/debug"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"gitee.com/jiuhuidalan1/goproxy/internal/config"
@@ -38,8 +40,8 @@ type trackedConn struct {
 	protocol      string
 	clientAddr    string
 	targetAddr    string
-	uploadBytes   int64
-	downloadBytes int64
+	uploadBytes   atomic.Int64
+	downloadBytes atomic.Int64
 	openedAt      time.Time
 }
 
@@ -62,17 +64,24 @@ type Server struct {
 	connMu     sync.Mutex
 	conns      map[net.Conn]*trackedConn
 
+	trimMu    sync.Mutex
+	trimTimer *time.Timer
+
 	acceptWg sync.WaitGroup
 	connWg   sync.WaitGroup
 }
 
 // NewServer creates a proxy server from validated runtime config.
 func NewServer(cfg config.Config, collector *stats.Collector) *Server {
+	mapSize := cfg.Relay.MaxConnections
+	if mapSize > 10000 {
+		mapSize = 10000
+	}
 	return &Server{
 		cfg:       cfg,
 		collector: collector,
 		sem:       make(chan struct{}, cfg.Relay.MaxConnections),
-		conns:     make(map[net.Conn]*trackedConn),
+		conns:     make(map[net.Conn]*trackedConn, mapSize),
 	}
 }
 
@@ -154,6 +163,8 @@ func (s *Server) Stop() error {
 		closeConn(conn)
 	}
 	s.connWg.Wait()
+	s.cancelMemoryTrim()
+	debug.FreeOSMemory()
 
 	return nil
 }
@@ -195,8 +206,8 @@ func (s *Server) ActiveConnections() []ConnectionSnapshot {
 			Protocol:      item.protocol,
 			ClientAddr:    item.clientAddr,
 			TargetAddr:    item.targetAddr,
-			UploadBytes:   item.uploadBytes,
-			DownloadBytes: item.downloadBytes,
+			UploadBytes:   item.uploadBytes.Load(),
+			DownloadBytes: item.downloadBytes.Load(),
 			OpenedAt:      item.openedAt.Format(time.RFC3339),
 		})
 	}
@@ -282,8 +293,12 @@ func (s *Server) registerConn(protocol string, conn net.Conn) {
 func (s *Server) unregisterConn(conn net.Conn) {
 	s.connMu.Lock()
 	delete(s.conns, conn)
+	remaining := len(s.conns)
 	s.connMu.Unlock()
 	s.collector.ConnClosed()
+	if remaining == 0 {
+		s.scheduleMemoryTrim()
+	}
 }
 
 func (s *Server) setConnTarget(conn net.Conn, targetAddr string) {
@@ -294,28 +309,36 @@ func (s *Server) setConnTarget(conn net.Conn, targetAddr string) {
 	s.connMu.Unlock()
 }
 
-func (s *Server) addConnUpload(conn net.Conn, n int64) {
+func (s *Server) connByteCounters(conn net.Conn) (func(int64), func(int64)) {
+	s.connMu.Lock()
+	item := s.conns[conn]
+	s.connMu.Unlock()
+
+	return func(n int64) {
+			s.addUpload(item, n)
+		}, func(n int64) {
+			s.addDownload(item, n)
+		}
+}
+
+func (s *Server) addUpload(item *trackedConn, n int64) {
 	if n <= 0 {
 		return
 	}
 	s.collector.AddUpload(n)
-	s.connMu.Lock()
-	if item := s.conns[conn]; item != nil {
-		item.uploadBytes += n
+	if item != nil {
+		item.uploadBytes.Add(n)
 	}
-	s.connMu.Unlock()
 }
 
-func (s *Server) addConnDownload(conn net.Conn, n int64) {
+func (s *Server) addDownload(item *trackedConn, n int64) {
 	if n <= 0 {
 		return
 	}
 	s.collector.AddDownload(n)
-	s.connMu.Lock()
-	if item := s.conns[conn]; item != nil {
-		item.downloadBytes += n
+	if item != nil {
+		item.downloadBytes.Add(n)
 	}
-	s.connMu.Unlock()
 }
 
 func (s *Server) activeConnections() []net.Conn {
@@ -327,6 +350,31 @@ func (s *Server) activeConnections() []net.Conn {
 		conns = append(conns, conn)
 	}
 	return conns
+}
+
+func (s *Server) scheduleMemoryTrim() {
+	s.trimMu.Lock()
+	defer s.trimMu.Unlock()
+
+	if s.trimTimer != nil {
+		s.trimTimer.Stop()
+	}
+	s.trimTimer = time.AfterFunc(5*time.Second, func() {
+		debug.FreeOSMemory()
+		s.trimMu.Lock()
+		s.trimTimer = nil
+		s.trimMu.Unlock()
+	})
+}
+
+func (s *Server) cancelMemoryTrim() {
+	s.trimMu.Lock()
+	defer s.trimMu.Unlock()
+
+	if s.trimTimer != nil {
+		s.trimTimer.Stop()
+		s.trimTimer = nil
+	}
 }
 
 type protocolListener struct {
