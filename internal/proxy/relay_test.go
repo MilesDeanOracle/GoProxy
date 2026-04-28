@@ -20,7 +20,7 @@ func TestRelayCopiesBothDirectionsAndCountsBytes(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- relay(ctx, leftRelay, rightRelay, collector, time.Second)
+		errCh <- relay(ctx, leftRelay, rightRelay, time.Second, collector.AddUpload, collector.AddDownload)
 	}()
 
 	if _, err := leftApp.Write([]byte("hello")); err != nil {
@@ -52,6 +52,46 @@ func TestRelayCopiesBothDirectionsAndCountsBytes(t *testing.T) {
 	}
 	if snapshot.DownloadBytes != int64(len("world")) {
 		t.Fatalf("expected download bytes %d, got %d", len("world"), snapshot.DownloadBytes)
+	}
+}
+
+func TestRelayDoesNotCloseIdleTunnelOnTimeout(t *testing.T) {
+	leftApp, leftRelay := tcpPair(t)
+	rightRelay, rightApp := tcpPair(t)
+	collector := stats.NewCollector()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- relay(ctx, leftRelay, rightRelay, 100*time.Millisecond, collector.AddUpload, collector.AddDownload)
+	}()
+
+	time.Sleep(250 * time.Millisecond)
+
+	select {
+	case err := <-errCh:
+		t.Fatalf("relay stopped while idle: %v", err)
+	default:
+	}
+
+	if _, err := leftApp.Write([]byte("still-alive")); err != nil {
+		t.Fatalf("write after idle period: %v", err)
+	}
+	readExact(t, rightApp, "still-alive")
+
+	_ = leftApp.Close()
+	_ = rightApp.Close()
+	cancel()
+
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("relay returned error: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("relay did not stop")
 	}
 }
 

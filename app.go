@@ -245,6 +245,17 @@ func (a *App) GetStats() stats.Stats {
 	return a.server.Stats()
 }
 
+// GetActiveConnections returns current active proxy connection details.
+func (a *App) GetActiveConnections() []proxy.ConnectionSnapshot {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if a.server == nil {
+		return nil
+	}
+	return a.server.ActiveConnections()
+}
+
 // GetRecentLogs returns the newest n log entries from the in-memory ring buffer.
 func (a *App) GetRecentLogs(n int) []logger.Entry {
 	a.mu.Lock()

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
@@ -70,10 +72,93 @@ func TestHTTPConnect(t *testing.T) {
 		}
 	}
 
+	connections := server.ActiveConnections()
+	if len(connections) != 1 {
+		t.Fatalf("expected 1 active connection, got %d", len(connections))
+	}
+	if connections[0].Protocol != "http" || connections[0].TargetAddr != echoAddr {
+		t.Fatalf("unexpected active connection snapshot: %+v", connections[0])
+	}
+
 	if _, err := conn.Write([]byte("http-connect")); err != nil {
 		t.Fatalf("write tunnel data: %v", err)
 	}
 	readExact(t, reader, "http-connect")
+}
+
+func TestHTTPConnectWithoutHostHeader(t *testing.T) {
+	echoAddr := startEchoServer(t)
+	server := startTestServer(t, testConfig(0, freePort(t), 8))
+
+	conn, err := net.Dial("tcp", server.Status().HTTPAddr)
+	if err != nil {
+		t.Fatalf("dial http proxy: %v", err)
+	}
+	defer conn.Close()
+
+	if _, err := fmt.Fprintf(conn, "CONNECT %s HTTP/1.1\r\n\r\n", echoAddr); err != nil {
+		t.Fatalf("write connect request: %v", err)
+	}
+
+	reader := bufio.NewReader(conn)
+	statusLine, err := reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read http connect status: %v", err)
+	}
+	if !strings.Contains(statusLine, "200") {
+		t.Fatalf("expected 200 status, got %q", statusLine)
+	}
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read http connect header: %v", err)
+		}
+		if line == "\r\n" {
+			break
+		}
+	}
+
+	if _, err := conn.Write([]byte("http-connect-no-host")); err != nil {
+		t.Fatalf("write tunnel data: %v", err)
+	}
+	readExact(t, reader, "http-connect-no-host")
+}
+
+func TestHTTPForwardProxy(t *testing.T) {
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/through-proxy" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		_, _ = w.Write([]byte("forward-ok"))
+	}))
+	t.Cleanup(target.Close)
+
+	server := startTestServer(t, testConfig(0, freePort(t), 8))
+	conn, err := net.Dial("tcp", server.Status().HTTPAddr)
+	if err != nil {
+		t.Fatalf("dial http proxy: %v", err)
+	}
+	defer conn.Close()
+
+	if _, err := fmt.Fprintf(conn, "GET %s/through-proxy HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n", target.URL, strings.TrimPrefix(target.URL, "http://")); err != nil {
+		t.Fatalf("write forward request: %v", err)
+	}
+
+	resp, err := http.ReadResponse(bufio.NewReader(conn), nil)
+	if err != nil {
+		t.Fatalf("read forwarded response: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 status, got %s", resp.Status)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read forwarded body: %v", err)
+	}
+	if string(body) != "forward-ok" {
+		t.Fatalf("expected forward-ok, got %q", string(body))
+	}
 }
 
 func TestServerStartStop(t *testing.T) {

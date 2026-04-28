@@ -1,5 +1,6 @@
-import type { AppConfig, LogEntry, ServerStatus, StatsSnapshot } from '../types'
+import type { ActiveConnection, AppConfig, LogEntry, ServerStatus, StatsSnapshot } from '../types'
 import {
+  GetActiveConnections,
   GetConfig,
   GetRecentLogs,
   GetServerStatus,
@@ -34,6 +35,10 @@ export function getServerStatus() {
 
 export function getStats() {
   return GetStats() as unknown as Promise<StatsSnapshot>
+}
+
+export function getActiveConnections() {
+  return GetActiveConnections() as unknown as Promise<ActiveConnection[]>
 }
 
 export function getRecentLogs(n: number) {

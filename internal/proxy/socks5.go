@@ -51,6 +51,7 @@ func (s *Server) handleSOCKS5(ctx context.Context, conn net.Conn) error {
 		}
 		return err
 	}
+	s.setConnTarget(conn, targetAddr)
 
 	dialer := &net.Dialer{
 		Timeout:   time.Duration(s.cfg.Relay.DialTimeoutSec) * time.Second,
@@ -71,7 +72,11 @@ func (s *Server) handleSOCKS5(ctx context.Context, conn net.Conn) error {
 	}
 
 	clearDeadlines(conn, target)
-	return relay(ctx, conn, target, s.collector, timeout)
+	return relay(ctx, conn, target, timeout, func(n int64) {
+		s.addConnUpload(conn, n)
+	}, func(n int64) {
+		s.addConnDownload(conn, n)
+	})
 }
 
 func negotiateSOCKS5(conn net.Conn) error {

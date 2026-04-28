@@ -170,6 +170,30 @@ export namespace logger {
 
 export namespace proxy {
 	
+	export class ConnectionSnapshot {
+	    id: number;
+	    protocol: string;
+	    clientAddr: string;
+	    targetAddr: string;
+	    uploadBytes: number;
+	    downloadBytes: number;
+	    openedAt: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ConnectionSnapshot(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.protocol = source["protocol"];
+	        this.clientAddr = source["clientAddr"];
+	        this.targetAddr = source["targetAddr"];
+	        this.uploadBytes = source["uploadBytes"];
+	        this.downloadBytes = source["downloadBytes"];
+	        this.openedAt = source["openedAt"];
+	    }
+	}
 	export class Status {
 	    running: boolean;
 	    startedAt: string;

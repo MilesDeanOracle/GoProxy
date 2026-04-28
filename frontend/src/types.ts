@@ -53,6 +53,16 @@ export interface StatsSnapshot {
   downloadBytes: number
 }
 
+export interface ActiveConnection {
+  id: number
+  protocol: string
+  clientAddr: string
+  targetAddr: string
+  uploadBytes: number
+  downloadBytes: number
+  openedAt: string
+}
+
 export interface LogEntry {
   time: string
   level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR'

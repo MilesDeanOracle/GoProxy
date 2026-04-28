@@ -5,7 +5,7 @@
   "frontend:install": "npm install",
   "frontend:build": "npm run build",
   "frontend:dev:watcher": "npm run dev",
-  "frontend:dev:serverUrl": "http://localhost:5173",
+  "frontend:dev:serverUrl": "http://localhost:18606",
   "author": {
     "name": "jiuhuidalan1",
     "email": "158812026@qq.com"

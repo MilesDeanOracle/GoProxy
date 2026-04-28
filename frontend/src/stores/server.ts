@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { getServerStatus, getStats, startServer, stopServer } from '../backend/api'
-import type { ServerStatus, StatsSnapshot } from '../types'
+import { getActiveConnections, getServerStatus, getStats, startServer, stopServer } from '../backend/api'
+import type { ActiveConnection, ServerStatus, StatsSnapshot } from '../types'
 
 const emptyStatus: ServerStatus = {
   running: false,
@@ -22,6 +22,7 @@ const emptyStats: StatsSnapshot = {
 export const useServerStore = defineStore('server', () => {
   const status = ref<ServerStatus>({ ...emptyStatus })
   const stats = ref<StatsSnapshot>({ ...emptyStats })
+  const activeConnections = ref<ActiveConnection[]>([])
   const loading = ref(false)
   const error = ref('')
 
@@ -32,6 +33,7 @@ export const useServerStore = defineStore('server', () => {
     try {
       status.value = await getServerStatus()
       stats.value = await getStats()
+      activeConnections.value = await getActiveConnections()
     } catch (err) {
       error.value = err instanceof Error ? err.message : String(err)
     }
@@ -72,6 +74,7 @@ export const useServerStore = defineStore('server', () => {
   return {
     status,
     stats,
+    activeConnections,
     loading,
     error,
     totalBytes,

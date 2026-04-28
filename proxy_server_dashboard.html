@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Sora:wght@300;400;500;600&display=swap');
+
+  *{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --nav-w:200px;
+    --bg:#0d1117;
+    --bg2:#161b22;
+    --bg3:#1e2530;
+    --border:#2a3340;
+    --text:#e6edf3;
+    --muted:#7d8590;
+    --accent:#3b82f6;
+    --accent2:#10b981;
+    --accent3:#f59e0b;
+    --accent4:#ef4444;
+    --font:'Sora',sans-serif;
+    --mono:'JetBrains Mono',monospace;
+  }
+  body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:600px;display:flex;font-size:13px;}
+
+  /* NAV */
+  nav{width:var(--nav-w);background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:0;flex-shrink:0;}
+  .nav-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+  .nav-logo .dot{width:8px;height:8px;border-radius:50%;background:var(--accent2);box-shadow:0 0 6px var(--accent2);}
+  .nav-logo span{font-size:13px;font-weight:600;letter-spacing:.03em;color:var(--text);}
+  .nav-logo small{font-size:10px;color:var(--muted);font-family:var(--mono);}
+  .nav-section{padding:12px 10px 4px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;border-radius:6px;margin:1px 6px;color:var(--muted);transition:all .15s;font-size:12.5px;font-weight:400;}
+  .nav-item:hover{background:var(--bg3);color:var(--text);}
+  .nav-item.active{background:rgba(59,130,246,.12);color:var(--accent);font-weight:500;}
+  .nav-item .ico{width:15px;text-align:center;font-size:13px;}
+  .nav-item .badge{margin-left:auto;background:var(--accent4);color:#fff;font-size:9px;padding:1px 5px;border-radius:10px;font-family:var(--mono);}
+  .nav-status{margin-top:auto;padding:12px;border-top:1px solid var(--border);}
+  .status-pill{display:flex;align-items:center;gap:7px;padding:7px 10px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;font-size:11px;color:var(--accent2);}
+  .status-pill .blink{width:6px;height:6px;border-radius:50%;background:var(--accent2);animation:blink 1.4s infinite;}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+  /* MAIN */
+  main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+  .topbar{height:48px;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:12px;background:var(--bg2);flex-shrink:0;}
+  .topbar-title{font-size:13px;font-weight:500;color:var(--text);}
+  .topbar-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
+  .btn{padding:5px 12px;border-radius:6px;font-size:11.5px;font-family:var(--font);cursor:pointer;font-weight:500;transition:all .15s;border:1px solid;}
+  .btn-stop{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.3);color:#f87171;}
+  .btn-stop:hover{background:rgba(239,68,68,.18);}
+  .btn-start{background:rgba(16,185,129,.1);border-color:rgba(16,185,129,.3);color:var(--accent2);}
+  .chip{padding:3px 8px;border-radius:4px;font-size:10.5px;font-family:var(--mono);background:var(--bg3);border:1px solid var(--border);color:var(--muted);}
+
+  .content{flex:1;overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:16px;}
+
+  /* STAT CARDS */
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+  .card-label{font-size:10.5px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;}
+  .card-val{font-size:22px;font-weight:600;font-family:var(--mono);letter-spacing:-.02em;}
+  .card-sub{font-size:10px;color:var(--muted);margin-top:4px;font-family:var(--mono);}
+  .card-val.green{color:var(--accent2);}
+  .card-val.blue{color:var(--accent);}
+  .card-val.amber{color:var(--accent3);}
+  .card-val.red{color:var(--accent4);}
+  .trend{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-family:var(--mono);}
+  .trend.up{color:var(--accent2);}
+  .trend.dn{color:var(--accent4);}
+
+  /* PANELS */
+  .panels{display:grid;grid-template-columns:1fr 340px;gap:12px;}
+  .panel{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+  .panel-head{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+  .panel-head h3{font-size:12px;font-weight:500;color:var(--text);}
+  .panel-head .tag{font-size:10px;font-family:var(--mono);padding:2px 6px;border-radius:4px;background:var(--bg3);color:var(--muted);border:1px solid var(--border);}
+  .panel-head .ml{margin-left:auto;}
+
+  /* CHART */
+  .chart-wrap{padding:14px 16px 10px;}
+  canvas{width:100%!important;display:block;}
+
+  /* CONN TABLE */
+  .conn-table{width:100%;border-collapse:collapse;font-size:11.5px;}
+  .conn-table th{padding:7px 12px;text-align:left;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);font-weight:400;}
+  .conn-table td{padding:8px 12px;border-bottom:1px solid rgba(42,51,64,.6);color:var(--text);font-family:var(--mono);}
+  .conn-table tr:last-child td{border-bottom:none;}
+  .conn-table tr:hover td{background:rgba(255,255,255,.02);}
+  .proto{padding:2px 6px;border-radius:4px;font-size:10px;font-weight:500;}
+  .proto.s5{background:rgba(59,130,246,.15);color:#60a5fa;}
+  .proto.hc{background:rgba(245,158,11,.12);color:#fbbf24;}
+  .dir{color:var(--muted);}
+
+  /* LOG PANEL */
+  .log-list{padding:8px 0;max-height:220px;overflow-y:auto;}
+  .log-item{padding:5px 14px;font-size:11px;font-family:var(--mono);display:flex;align-items:flex-start;gap:8px;line-height:1.5;}
+  .log-item:hover{background:rgba(255,255,255,.02);}
+  .log-time{color:var(--muted);flex-shrink:0;font-size:10.5px;}
+  .log-lv{flex-shrink:0;font-size:10px;font-weight:500;padding:1px 5px;border-radius:3px;margin-top:.5px;}
+  .lv-info{background:rgba(59,130,246,.15);color:#60a5fa;}
+  .lv-warn{background:rgba(245,158,11,.12);color:#fbbf24;}
+  .lv-err{background:rgba(239,68,68,.12);color:#f87171;}
+  .lv-dbg{background:rgba(125,133,144,.12);color:var(--muted);}
+  .log-msg{color:var(--text);word-break:break-all;}
+
+  /* TABS */
+  .tabs{display:flex;gap:2px;padding:10px 14px 0;}
+  .tab{padding:5px 12px;font-size:11px;border-radius:5px 5px 0 0;cursor:pointer;color:var(--muted);border:1px solid transparent;border-bottom:none;}
+  .tab.active{background:var(--bg2);border-color:var(--border);color:var(--text);margin-bottom:-1px;}
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar{width:4px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">
+    <div class="dot"></div>
+    <div>
+      <span>ProxyServer</span><br>
+      <small>v1.0.0</small>
+    </div>
+  </div>
+
+  <div class="nav-section">监控</div>
+  <div class="nav-item active"><span class="ico">◈</span> 仪表盘</div>
+  <div class="nav-item"><span class="ico">◎</span> 实时日志 <span class="badge">3</span></div>
+  <div class="nav-item"><span class="ico">⟁</span> 流量统计</div>
+
+  <div class="nav-section">管理</div>
+  <div class="nav-item"><span class="ico">⊞</span> 服务配置</div>
+  <div class="nav-item"><span class="ico">◉</span> 认证管理</div>
+  <div class="nav-item"><span class="ico">⚙</span> 应用设置</div>
+
+  <div class="nav-status">
+    <div class="status-pill">
+      <div class="blink"></div>
+      <span>服务运行中</span>
+    </div>
+  </div>
+</nav>
+
+<main>
+  <div class="topbar">
+    <span class="topbar-title">仪表盘</span>
+    <span class="chip">SOCKS5 · :1080</span>
+    <span class="chip">HTTP · :8080</span>
+    <div class="topbar-right">
+      <button class="btn btn-stop">■ 停止服务</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-label">活跃连接</div>
+        <div class="card-val green" id="active-conn">42</div>
+        <div class="card-sub trend up" id="conn-trend">↑ 较上分钟 +7</div>
+      </div>
+      <div class="card">
+        <div class="card-label">上传速率</div>
+        <div class="card-val blue" id="up-rate">1.2 MB/s</div>
+        <div class="card-sub">本次运行 <span id="up-total">3.4 GB</span></div>
+      </div>
+      <div class="card">
+        <div class="card-label">下载速率</div>
+        <div class="card-val amber" id="dn-rate">8.5 MB/s</div>
+        <div class="card-sub">本次运行 <span id="dn-total">28.1 GB</span></div>
+      </div>
+      <div class="card">
+        <div class="card-label">总连接数</div>
+        <div class="card-val" id="total-conn">1,284</div>
+        <div class="card-sub">认证失败 <span style="color:var(--accent4)">2</span></div>
+      </div>
+    </div>
+
+    <div class="panels">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>实时流量速率</h3>
+          <span class="tag">近 60 秒</span>
+          <span class="tag ml" id="chart-time">--</span>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="trafficChart" height="160"></canvas>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div class="panel" style="flex:1;">
+          <div class="panel-head">
+            <h3>活跃连接</h3>
+            <span class="tag ml" id="conn-count">42 / 1000</span>
+          </div>
+          <table class="conn-table">
+            <tr>
+              <th>协议</th><th>客户端</th><th>目标</th><th>流量</th>
+            </tr>
+            <tbody id="conn-tbody">
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="tabs">
+        <div class="tab active">全部</div>
+        <div class="tab">INFO</div>
+        <div class="tab">WARN</div>
+        <div class="tab">ERROR</div>
+      </div>
+      <div class="panel-head" style="border-top:1px solid var(--border);">
+        <h3>实时日志</h3>
+        <span class="tag ml">自动滚动</span>
+      </div>
+      <div class="log-list" id="log-list"></div>
+    </div>
+
+  </div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+const BLUE='#3b82f6', AMBER='#f59e0b', MUTED='#2a3340';
+
+const labels=Array.from({length:60},(_,i)=>i);
+const upData=Array.from({length:60},()=>+(Math.random()*3).toFixed(2));
+const dnData=Array.from({length:60},()=>+(Math.random()*12).toFixed(2));
+
+const ctx=document.getElementById('trafficChart').getContext('2d');
+const chart=new Chart(ctx,{
+  type:'line',
+  data:{
+    labels,
+    datasets:[
+      {label:'上传',data:[...upData],borderColor:BLUE,backgroundColor:'rgba(59,130,246,.06)',borderWidth:1.5,pointRadius:0,tension:.4,fill:true},
+      {label:'下载',data:[...dnData],borderColor:AMBER,backgroundColor:'rgba(245,158,11,.06)',borderWidth:1.5,pointRadius:0,tension:.4,fill:true}
+    ]
+  },
+  options:{
+    responsive:true,animation:false,
+    scales:{
+      x:{display:false},
+      y:{
+        grid:{color:'rgba(42,51,64,.8)',lineWidth:.5},
+        ticks:{color:'#7d8590',font:{family:"'JetBrains Mono',monospace",size:10},
+          callback:v=>v.toFixed(1)+' MB'}
+      }
+    },
+    plugins:{
+      legend:{display:false},
+      tooltip:{
+        backgroundColor:'#1e2530',borderColor:'#2a3340',borderWidth:1,
+        titleColor:'#e6edf3',bodyColor:'#7d8590',
+        titleFont:{family:"'JetBrains Mono',monospace",size:11},
+        callbacks:{label:c=>` ${c.dataset.label}: ${c.raw.toFixed(2)} MB/s`}
+      }
+    }
+  }
+});
+
+const connections=[
+  {proto:'s5',client:'192.168.1.5:4421',target:'api.github.com:443',tx:'12.4 KB'},
+  {proto:'hc',client:'10.0.0.12:5512',target:'www.google.com:443',tx:'3.1 MB'},
+  {proto:'s5',client:'192.168.1.8:3301',target:'cdn.jsdelivr.net:443',tx:'890 KB'},
+  {proto:'hc',client:'10.0.0.3:6622',target:'fonts.googleapis.com:443',tx:'45 KB'},
+  {proto:'s5',client:'192.168.2.1:7701',target:'npmjs.com:443',tx:'2.2 MB'},
+];
+
+const tbody=document.getElementById('conn-tbody');
+connections.forEach(c=>{
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td><span class="proto ${c.proto}">${c.proto==='s5'?'SOCKS5':'HTTP'}</span></td><td>${c.client}</td><td>${c.target}</td><td>${c.tx}</td>`;
+  tbody.appendChild(tr);
+});
+
+const logs=[
+  {t:'14:32:01',lv:'info',msg:'新连接建立 192.168.1.5:4421 → api.github.com:443 [SOCKS5]'},
+  {t:'14:32:00',lv:'info',msg:'新连接建立 10.0.0.12:5512 → www.google.com:443 [HTTP CONNECT]'},
+  {t:'14:31:58',lv:'warn',msg:'连接超时 192.168.3.2:8800 → timeout.example.com:443 (30s)'},
+  {t:'14:31:55',lv:'info',msg:'连接断开 192.168.1.3:2211 → closed.io:443，传输 1.2MB↑ 8.4MB↓'},
+  {t:'14:31:52',lv:'dbg', msg:'SOCKS5 握手完成 192.168.1.8:3301，认证方式: NO_AUTH'},
+  {t:'14:31:50',lv:'err', msg:'目标连接失败 → unreachable.host:8443: dial tcp: i/o timeout'},
+  {t:'14:31:48',lv:'info',msg:'服务启动成功 SOCKS5@:1080 HTTP@:8080'},
+];
+
+const lvMap={info:'lv-info INFO',warn:'lv-warn WARN',err:'lv-err ERR',dbg:'lv-dbg DBG'};
+const logList=document.getElementById('log-list');
+function addLog(entry){
+  const [cls,label]=lvMap[entry.lv].split(' ');
+  const div=document.createElement('div');
+  div.className='log-item';
+  div.innerHTML=`<span class="log-time">${entry.t}</span><span class="log-lv ${cls}">${label}</span><span class="log-msg">${entry.msg}</span>`;
+  logList.prepend(div);
+  while(logList.children.length>40)logList.removeChild(logList.lastChild);
+}
+logs.forEach(addLog);
+
+let tick=0;
+const timeEl=document.getElementById('chart-time');
+setInterval(()=>{
+  tick++;
+  const up=+(Math.random()*3).toFixed(2);
+  const dn=+(Math.random()*12).toFixed(2);
+
+  chart.data.datasets[0].data.push(up);
+  chart.data.datasets[0].data.shift();
+  chart.data.datasets[1].data.push(dn);
+  chart.data.datasets[1].data.shift();
+  chart.update('none');
+
+  document.getElementById('up-rate').textContent=up.toFixed(1)+' MB/s';
+  document.getElementById('dn-rate').textContent=dn.toFixed(1)+' MB/s';
+
+  const conn=Math.max(30,Math.min(80,parseInt(document.getElementById('active-conn').textContent)+(Math.random()>.5?1:-1)));
+  document.getElementById('active-conn').textContent=conn;
+  document.getElementById('conn-count').textContent=conn+' / 1000';
+
+  const now=new Date();
+  timeEl.textContent=now.toLocaleTimeString('zh-CN');
+
+  if(tick%4===0){
+    const msgs=[
+      {lv:'info',msg:`新连接建立 10.0.0.${Math.floor(Math.random()*200)}:${3000+Math.floor(Math.random()*5000)} → api.example.com:443 [SOCKS5]`},
+      {lv:'info',msg:`连接断开，传输 ${(Math.random()*5).toFixed(1)}MB↑ ${(Math.random()*20).toFixed(1)}MB↓`},
+      {lv:'warn',msg:'连接超时 192.168.x.x → slow.host:443 (30s)'},
+      {lv:'dbg', msg:`SOCKS5 握手完成，客户端 10.0.${Math.floor(Math.random()*5)}.${Math.floor(Math.random()*255)}:${4000+Math.floor(Math.random()*2000)}`},
+    ];
+    const now2=new Date();
+    const t=now2.toTimeString().slice(0,8);
+    const entry=msgs[Math.floor(Math.random()*msgs.length)];
+    addLog({t,lv:entry.lv,msg:entry.msg});
+  }
+},1000);
+</script>
+</body>
+</html>

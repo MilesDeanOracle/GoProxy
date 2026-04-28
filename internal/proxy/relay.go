@@ -9,11 +9,9 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"gitee.com/jiuhuidalan1/goproxy/internal/stats"
 )
 
-func relay(ctx context.Context, client, target net.Conn, collector *stats.Collector, readTimeout time.Duration) error {
+func relay(ctx context.Context, client, target net.Conn, writeTimeout time.Duration, onUpload, onDownload func(int64)) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -36,13 +34,13 @@ func relay(ctx context.Context, client, target net.Conn, collector *stats.Collec
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		err := copyConn(target, client, readTimeout, collector.AddUpload)
+		err := copyConn(target, client, writeTimeout, onUpload)
 		closeWrite(target)
 		recordErr(err)
 	}()
 	go func() {
 		defer wg.Done()
-		err := copyConn(client, target, readTimeout, collector.AddDownload)
+		err := copyConn(client, target, writeTimeout, onDownload)
 		closeWrite(client)
 		recordErr(err)
 	}()
@@ -70,18 +68,14 @@ func relay(ctx context.Context, client, target net.Conn, collector *stats.Collec
 	}
 }
 
-func copyConn(dst, src net.Conn, timeout time.Duration, onBytes func(int64)) error {
+func copyConn(dst, src net.Conn, writeTimeout time.Duration, onBytes func(int64)) error {
 	buf := make([]byte, 32*1024)
 
 	for {
-		if timeout > 0 {
-			_ = src.SetReadDeadline(time.Now().Add(timeout))
-		}
-
 		n, readErr := src.Read(buf)
 		if n > 0 {
-			if timeout > 0 {
-				_ = dst.SetWriteDeadline(time.Now().Add(timeout))
+			if writeTimeout > 0 {
+				_ = dst.SetWriteDeadline(time.Now().Add(writeTimeout))
 			}
 
 			written, writeErr := dst.Write(buf[:n])

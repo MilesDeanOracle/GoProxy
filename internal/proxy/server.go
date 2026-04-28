@@ -22,6 +22,27 @@ type Status struct {
 	TotalConns  int64  `json:"totalConns"`
 }
 
+// ConnectionSnapshot describes an active proxied connection for the desktop UI.
+type ConnectionSnapshot struct {
+	ID            int64  `json:"id"`
+	Protocol      string `json:"protocol"`
+	ClientAddr    string `json:"clientAddr"`
+	TargetAddr    string `json:"targetAddr"`
+	UploadBytes   int64  `json:"uploadBytes"`
+	DownloadBytes int64  `json:"downloadBytes"`
+	OpenedAt      string `json:"openedAt"`
+}
+
+type trackedConn struct {
+	id            int64
+	protocol      string
+	clientAddr    string
+	targetAddr    string
+	uploadBytes   int64
+	downloadBytes int64
+	openedAt      time.Time
+}
+
 // Server manages proxy listeners and active connections.
 type Server struct {
 	cfg       config.Config
@@ -37,8 +58,9 @@ type Server struct {
 
 	sem chan struct{}
 
-	connMu sync.Mutex
-	conns  map[net.Conn]struct{}
+	nextConnID int64
+	connMu     sync.Mutex
+	conns      map[net.Conn]*trackedConn
 
 	acceptWg sync.WaitGroup
 	connWg   sync.WaitGroup
@@ -50,7 +72,7 @@ func NewServer(cfg config.Config, collector *stats.Collector) *Server {
 		cfg:       cfg,
 		collector: collector,
 		sem:       make(chan struct{}, cfg.Relay.MaxConnections),
-		conns:     make(map[net.Conn]struct{}),
+		conns:     make(map[net.Conn]*trackedConn),
 	}
 }
 
@@ -161,6 +183,26 @@ func (s *Server) Stats() stats.Stats {
 	return s.collector.Snapshot()
 }
 
+// ActiveConnections returns current active connection metadata.
+func (s *Server) ActiveConnections() []ConnectionSnapshot {
+	s.connMu.Lock()
+	defer s.connMu.Unlock()
+
+	snapshots := make([]ConnectionSnapshot, 0, len(s.conns))
+	for _, item := range s.conns {
+		snapshots = append(snapshots, ConnectionSnapshot{
+			ID:            item.id,
+			Protocol:      item.protocol,
+			ClientAddr:    item.clientAddr,
+			TargetAddr:    item.targetAddr,
+			UploadBytes:   item.uploadBytes,
+			DownloadBytes: item.downloadBytes,
+			OpenedAt:      item.openedAt.Format(time.RFC3339),
+		})
+	}
+	return snapshots
+}
+
 func (s *Server) openListeners() ([]net.Listener, error) {
 	var listeners []net.Listener
 
@@ -206,7 +248,7 @@ func (s *Server) acceptLoop(ctx context.Context, protocol string, listener net.L
 			continue
 		}
 
-		s.registerConn(conn)
+		s.registerConn(protocol, conn)
 		s.connWg.Add(1)
 		go func() {
 			defer s.connWg.Done()
@@ -224,9 +266,15 @@ func (s *Server) acceptLoop(ctx context.Context, protocol string, listener net.L
 	}
 }
 
-func (s *Server) registerConn(conn net.Conn) {
+func (s *Server) registerConn(protocol string, conn net.Conn) {
 	s.connMu.Lock()
-	s.conns[conn] = struct{}{}
+	s.nextConnID++
+	s.conns[conn] = &trackedConn{
+		id:         s.nextConnID,
+		protocol:   protocol,
+		clientAddr: conn.RemoteAddr().String(),
+		openedAt:   time.Now(),
+	}
 	s.connMu.Unlock()
 	s.collector.ConnOpened()
 }
@@ -236,6 +284,38 @@ func (s *Server) unregisterConn(conn net.Conn) {
 	delete(s.conns, conn)
 	s.connMu.Unlock()
 	s.collector.ConnClosed()
+}
+
+func (s *Server) setConnTarget(conn net.Conn, targetAddr string) {
+	s.connMu.Lock()
+	if item := s.conns[conn]; item != nil {
+		item.targetAddr = targetAddr
+	}
+	s.connMu.Unlock()
+}
+
+func (s *Server) addConnUpload(conn net.Conn, n int64) {
+	if n <= 0 {
+		return
+	}
+	s.collector.AddUpload(n)
+	s.connMu.Lock()
+	if item := s.conns[conn]; item != nil {
+		item.uploadBytes += n
+	}
+	s.connMu.Unlock()
+}
+
+func (s *Server) addConnDownload(conn net.Conn, n int64) {
+	if n <= 0 {
+		return
+	}
+	s.collector.AddDownload(n)
+	s.connMu.Lock()
+	if item := s.conns[conn]; item != nil {
+		item.downloadBytes += n
+	}
+	s.connMu.Unlock()
 }
 
 func (s *Server) activeConnections() []net.Conn {
