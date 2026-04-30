@@ -162,7 +162,6 @@ onBeforeUnmount(() => {
     <section class="panel">
       <div class="panel-head">
         <h3>实时速率</h3>
-        <span class="tag">ECHARTS</span>
       </div>
       <div ref="chartEl" class="echarts-panel" />
     </section>

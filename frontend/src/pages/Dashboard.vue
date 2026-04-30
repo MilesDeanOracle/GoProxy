@@ -286,7 +286,7 @@ onUnmounted(() => {
           <section class="panel">
             <div class="panel-head">
               <h3>实时流量速率</h3>
-              <span class="tag ml">ECHARTS · {{ chartTime }}</span>
+              <span class="tag ml">{{ chartTime }}</span>
             </div>
             <div ref="chartEl" class="echarts-panel" />
           </section>
