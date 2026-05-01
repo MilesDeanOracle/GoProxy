@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -182,6 +183,9 @@ func buildWriteSyncer(cfg config.LogConfig, logPath string) (zapcore.WriteSyncer
 	if cfg.Output == "file" || cfg.Output == "both" {
 		if logPath == "" {
 			return nil, nil, fmt.Errorf("log path is required when file output is enabled")
+		}
+		if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+			return nil, nil, fmt.Errorf("create log directory: %w", err)
 		}
 		fileWriter := &lumberjack.Logger{
 			Filename:   logPath,

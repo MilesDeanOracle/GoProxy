@@ -156,9 +156,11 @@ onMounted(async () => {
           <aside class="sidebar">
             <div class="nav-logo">
               <span class="live-dot" :class="{ stopped: !server.status.running }" />
-              <div>
-                <strong>ProxyServer</strong>
-                <small>v1.0.0</small>
+              <div class="nav-logo-copy">
+
+                <span class="inline-status" :class="{ stopped: !server.status.running }">
+                    {{ server.status.running ? '服务运行中' : '服务已停止' }}
+                  </span>
               </div>
             </div>
 
@@ -180,10 +182,6 @@ onMounted(async () => {
             </nav>
 
             <div class="nav-status">
-              <div class="status-pill" :class="{ stopped: !server.status.running }">
-                <span class="blink" />
-                <span>{{ server.status.running ? '服务运行中' : '服务已停止' }}</span>
-              </div>
               <div class="ip-panel">
                 <span class="ip-title">网卡 IP</span>
                 <div v-if="localIPs.length > 0" class="ip-list">

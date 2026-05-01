@@ -6,31 +6,37 @@ import (
 	"path/filepath"
 )
 
-const appDirName = "ProxyServer"
+var executablePath = os.Executable
 
-// AppDataDir returns the platform-specific application data directory.
-func AppDataDir() (string, error) {
-	base, err := os.UserConfigDir()
+// AppBaseDir returns the directory that contains the current executable.
+func AppBaseDir() (string, error) {
+	executable, err := executablePath()
 	if err != nil {
-		return "", fmt.Errorf("resolve user config directory: %w", err)
+		return "", fmt.Errorf("resolve executable path: %w", err)
 	}
-	return filepath.Join(base, appDirName), nil
+
+	base := filepath.Dir(executable)
+	if base == "" || base == "." {
+		return "", fmt.Errorf("resolve executable directory: empty path")
+	}
+
+	return base, nil
 }
 
 // ConfigPath returns the platform-specific YAML config file path.
 func ConfigPath() (string, error) {
-	dir, err := AppDataDir()
+	base, err := AppBaseDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "config.yaml"), nil
+	return filepath.Join(base, "configs", "config.yaml"), nil
 }
 
 // LogPath returns the platform-specific runtime log file path.
 func LogPath() (string, error) {
-	dir, err := AppDataDir()
+	base, err := AppBaseDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "proxy-server.log"), nil
+	return filepath.Join(base, "logs", "proxy-server.log"), nil
 }

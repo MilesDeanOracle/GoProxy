@@ -95,7 +95,7 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 
 	// 禁用最大化按钮, 但允许自由调整窗口高度
-	go platform.DisableMaximizeButton("ProxyServer")
+	go platform.DisableMaximizeButton("GoProxy")
 
 	if a.tray != nil {
 		a.tray.Startup(ctx)

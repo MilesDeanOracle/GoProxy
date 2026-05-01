@@ -27,8 +27,8 @@ input {
 }
 
 .app-shell {
-  --nav-w: 200px;
-  --bg: #0d1117;
+  --nav-w: 130px;
+  --bg: #010101;
   --bg2: #161b22;
   --bg3: #1e2530;
   --panel: #161b22;
@@ -85,6 +85,21 @@ input {
   border-bottom: 1px solid var(--border);
 }
 
+.nav-logo-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.nav-logo-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
 .live-dot {
   width: 8px;
   height: 8px;
@@ -115,6 +130,25 @@ input {
   color: var(--muted);
   font-family: var(--mono);
   font-size: 10px;
+}
+
+.inline-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 2px 8px;
+  color: var(--accent2);
+  font-size: 10px;
+  line-height: 1;
+  background: color-mix(in srgb, var(--accent2) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent2) 24%, transparent);
+  border-radius: 4px;
+}
+
+.inline-status.stopped {
+  color: var(--muted);
+  background: var(--bg3);
+  border-color: var(--border);
 }
 
 .nav-ip-list {
@@ -222,22 +256,7 @@ input {
   border-top: 1px solid var(--border);
 }
 
-.status-pill {
-  order: 1;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 32px;
-  padding: 7px 10px;
-  color: var(--accent2);
-  background: color-mix(in srgb, var(--accent2) 9%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent2) 24%, transparent);
-  border-radius: 8px;
-  font-size: 11px;
-}
-
 .ip-panel {
-  order: 2;
   padding: 9px;
   background: color-mix(in srgb, var(--bg3) 72%, transparent);
   border: 1px solid var(--border);
@@ -283,34 +302,6 @@ input {
 .ip-empty {
   display: block;
   color: var(--subtle);
-}
-
-.status-pill.stopped {
-  color: var(--muted);
-  background: var(--bg3);
-  border-color: var(--border);
-}
-
-.blink {
-  width: 6px;
-  height: 6px;
-  background: currentColor;
-  border-radius: 999px;
-  animation: blink 1.4s infinite;
-}
-
-.status-pill.stopped .blink {
-  animation: none;
-}
-
-@keyframes blink {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.3;
-  }
 }
 
 .main {
@@ -1378,8 +1369,8 @@ input {
   background: var(--border);
   border-radius: 999px;
 }
-
-@media (max-width: 1060px) {
+/* 仪表盘状栏自动隐藏触发 */
+@media (max-width: 160px) {
   .cards {
     grid-template-columns: repeat(2, minmax(150px, 1fr));
   }
@@ -1393,8 +1384,8 @@ input {
     display: none;
   }
 }
-
-@media (max-width: 900px) {
+/* 菜单栏自动收缩触发 */
+@media (max-width: 100px) {
   .app-shell {
     min-width: 760px;
   }

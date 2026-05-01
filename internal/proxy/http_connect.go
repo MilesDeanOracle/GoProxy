@@ -50,7 +50,7 @@ func (s *Server) authenticateHTTPProxy(conn net.Conn, req *http.Request) bool {
 	}
 
 	s.recordAuthFailure()
-	_, _ = conn.Write([]byte("HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authenticate: Basic realm=\"ProxyServer\"\r\nConnection: close\r\nContent-Length: 0\r\n\r\n"))
+	_, _ = conn.Write([]byte("HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authenticate: Basic realm=\"GoProxy\"\r\nConnection: close\r\nContent-Length: 0\r\n\r\n"))
 	return false
 }
 
@@ -88,7 +88,7 @@ func (s *Server) handleHTTPTunnel(ctx context.Context, conn net.Conn, reader *bu
 	setTCPKeepAlive(conn, time.Duration(s.cfg.Relay.KeepAliveSec)*time.Second)
 	setTCPKeepAlive(target, time.Duration(s.cfg.Relay.KeepAliveSec)*time.Second)
 
-	if _, err := conn.Write([]byte("HTTP/1.1 200 Connection Established\r\nProxy-Agent: ProxyServer\r\n\r\n")); err != nil {
+	if _, err := conn.Write([]byte("HTTP/1.1 200 Connection Established\r\nProxy-Agent: GoProxy\r\n\r\n")); err != nil {
 		return err
 	}
 

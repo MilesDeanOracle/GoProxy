@@ -19,7 +19,7 @@ func main() {
 	}
 
 	err = wails.Run(&options.App{
-		Title:            "ProxyServer",
+		Title:            "GoProxy - V1.0.0",
 		Width:            1080,
 		Height:           720,
 		MinWidth:         900,

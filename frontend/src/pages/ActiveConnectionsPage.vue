@@ -1,15 +1,24 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { NSpin } from 'naive-ui'
 import { useConfigStore } from '../stores/config'
 import { useServerStore } from '../stores/server'
+import type { ActiveConnection } from '../types'
 
 const server = useServerStore()
 const config = useConfigStore()
 let timer: number | undefined
 
 const maxConnections = computed(() => config.draft?.relay.maxConnections ?? 1000)
-const rows = computed(() => server.activeConnections)
+const previousBytes = ref(new Map<number, { uploadBytes: number; downloadBytes: number }>())
+const connectionRates = ref(new Map<number, { uploadRate: number; downloadRate: number }>())
+const rows = computed(() =>
+  server.activeConnections.map((conn) => ({
+    ...conn,
+    uploadRate: connectionRates.value.get(conn.id)?.uploadRate ?? 0,
+    downloadRate: connectionRates.value.get(conn.id)?.downloadRate ?? 0
+  }))
+)
 
 function formatBytes(value: number): string {
   if (value < 1024) return `${value} B`
@@ -21,6 +30,10 @@ function formatBytes(value: number): string {
     unit = units[i]
   }
   return `${next.toFixed(next >= 10 ? 1 : 2)} ${unit}`
+}
+
+function formatRate(value: number): string {
+  return `${formatBytes(value)}/s`
 }
 
 function formatProtocol(protocol: string): string {
@@ -38,10 +51,33 @@ function shortTime(value: string): string {
   return parsed.toLocaleTimeString('zh-CN', { hour12: false })
 }
 
+function updateConnectionRates(connections: ActiveConnection[]) {
+  const nextPrevious = new Map<number, { uploadBytes: number; downloadBytes: number }>()
+  const nextRates = new Map<number, { uploadRate: number; downloadRate: number }>()
+
+  for (const conn of connections) {
+    const previous = previousBytes.value.get(conn.id)
+    nextPrevious.set(conn.id, {
+      uploadBytes: conn.uploadBytes,
+      downloadBytes: conn.downloadBytes
+    })
+    nextRates.set(conn.id, {
+      uploadRate: previous ? Math.max(0, conn.uploadBytes - previous.uploadBytes) : 0,
+      downloadRate: previous ? Math.max(0, conn.downloadBytes - previous.downloadBytes) : 0
+    })
+  }
+
+  previousBytes.value = nextPrevious
+  connectionRates.value = nextRates
+}
+
 onMounted(async () => {
   await server.refresh()
+  updateConnectionRates(server.activeConnections)
   timer = window.setInterval(() => {
-    void server.refresh()
+    void server.refresh().then(() => {
+      updateConnectionRates(server.activeConnections)
+    })
   }, 1000)
 })
 
@@ -64,8 +100,10 @@ onUnmounted(() => {
               <th>协议</th>
               <th>客户端</th>
               <th>目标</th>
-              <th>上行</th>
-              <th>下行</th>
+              <th>实时上行</th>
+              <th>实时下行</th>
+              <th>累计上行</th>
+              <th>累计下行</th>
               <th>建立时间</th>
             </tr>
           </thead>
@@ -74,12 +112,14 @@ onUnmounted(() => {
               <td><span class="proto" :class="protocolClass(conn.protocol)">{{ formatProtocol(conn.protocol) }}</span></td>
               <td>{{ conn.clientAddr }}</td>
               <td>{{ conn.targetAddr || '-' }}</td>
+              <td>{{ formatRate(conn.uploadRate) }}</td>
+              <td>{{ formatRate(conn.downloadRate) }}</td>
               <td>{{ formatBytes(conn.uploadBytes) }}</td>
               <td>{{ formatBytes(conn.downloadBytes) }}</td>
               <td>{{ shortTime(conn.openedAt) }}</td>
             </tr>
             <tr v-if="rows.length === 0">
-              <td colspan="6" class="table-empty">暂无活跃连接</td>
+              <td colspan="8" class="table-empty">暂无活跃连接</td>
             </tr>
           </tbody>
         </table>

@@ -1,6 +1,6 @@
-# ProxyServer
+# GoProxy
 
-ProxyServer 是一个基于 Go + Wails v2 的桌面代理服务端应用，支持 SOCKS5 和 HTTP CONNECT 代理、YAML 配置、实时日志与运行状态展示。前端使用 Vue 3、Naive UI 和 Pinia。
+GoProxy 是一个基于 Go + Wails v2 的桌面代理服务端应用，支持 SOCKS5 和 HTTP CONNECT 代理、YAML 配置、实时日志与运行状态展示。前端使用 Vue 3、Naive UI 和 Pinia。
 
 ## 环境要求
 
@@ -171,8 +171,7 @@ wails build -platform darwin/arm64
 
 桌面应用默认配置路径：
 
-- Windows：`%APPDATA%\ProxyServer\config.yaml`
-- macOS：`~/Library/Application Support/ProxyServer/config.yaml`
+- Windows / macOS：`<应用目录>/configs/config.yaml`
 
 CLI 默认读取当前目录下的 `config.yaml`，也可以通过 `-config` 指定路径。
 

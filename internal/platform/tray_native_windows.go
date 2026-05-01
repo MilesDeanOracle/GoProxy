@@ -26,8 +26,8 @@ func (t *TrayManager) startNativeTray(icon []byte) {
 
 		systray.Run(func() {
 			systray.SetIcon(icon)
-			systray.SetTitle("ProxyServer")
-			systray.SetTooltip("ProxyServer")
+			systray.SetTitle("GoProxy Stopped")
+			systray.SetTooltip("GoProxy")
 			systray.SetOnDblClick(func() {
 				t.mu.Lock()
 				action := t.actions.ShowWindow
@@ -38,20 +38,20 @@ func (t *TrayManager) startNativeTray(icon []byte) {
 			})
 
 			menu := nativeTrayMenu{
-				status: systray.AddMenuItem("服务状态：未运行", "当前代理服务状态"),
-				ips:    systray.AddMenuItem("网卡 IP：未检测到", "当前本机网卡 IP"),
-				socks:  systray.AddMenuItem("SOCKS5：-", "SOCKS5 监听地址"),
-				http:   systray.AddMenuItem("HTTPS：-", "HTTP CONNECT 监听地址"),
+				status: systray.AddMenuItem("Service Status: Stopped", "Current proxy service status"),
+				ips:    systray.AddMenuItem("Local IP: Not detected", "Current local network IP addresses"),
+				socks:  systray.AddMenuItem("SOCKS5: -", "SOCKS5 listen address"),
+				http:   systray.AddMenuItem("HTTP: -", "HTTP CONNECT listen address"),
 			}
 			menu.status.Disable()
 			menu.ips.Disable()
 			menu.socks.Disable()
 			menu.http.Disable()
 			systray.AddSeparator()
-			menu.show = systray.AddMenuItem("显示窗口", "显示 ProxyServer 主窗口")
-			menu.start = systray.AddMenuItem("启动服务", "启动代理服务")
-			menu.stop = systray.AddMenuItem("停止服务", "停止代理服务")
-			menu.quit = systray.AddMenuItem("退出", "退出 ProxyServer")
+			menu.show = systray.AddMenuItem("Show Window", "Show the GoProxy main window")
+			menu.start = systray.AddMenuItem("Start Service", "Start the proxy service")
+			menu.stop = systray.AddMenuItem("Stop Service", "Stop the proxy service")
+			menu.quit = systray.AddMenuItem("Quit", "Quit GoProxy")
 
 			t.setNativeMenu(menu)
 			t.updateNativeTray()
