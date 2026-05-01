@@ -11,10 +11,13 @@ import (
 	"time"
 
 	"gitee.com/jiuhuidalan1/goproxy/internal/config"
+	"gitee.com/jiuhuidalan1/goproxy/internal/logger"
 	"gitee.com/jiuhuidalan1/goproxy/internal/stats"
+	"go.uber.org/zap"
 )
 
 const serverStopGracePeriod = 3 * time.Second
+const routeLogSource = "route"
 
 // Status describes the current proxy server runtime state.
 type Status struct {
@@ -32,6 +35,9 @@ type ConnectionSnapshot struct {
 	Protocol      string `json:"protocol"`
 	ClientAddr    string `json:"clientAddr"`
 	TargetAddr    string `json:"targetAddr"`
+	RouteRuleName string `json:"routeRuleName"`
+	OutboundIP    string `json:"outboundIp"`
+	OutboundIface string `json:"outboundIface"`
 	UploadBytes   int64  `json:"uploadBytes"`
 	DownloadBytes int64  `json:"downloadBytes"`
 	OpenedAt      string `json:"openedAt"`
@@ -42,6 +48,9 @@ type trackedConn struct {
 	protocol      string
 	clientAddr    string
 	targetAddr    string
+	routeRuleName string
+	outboundIP    string
+	outboundIface string
 	uploadBytes   atomic.Int64
 	downloadBytes atomic.Int64
 	openedAt      time.Time
@@ -52,6 +61,10 @@ type Server struct {
 	cfg       config.Config
 	collector *stats.Collector
 	auth      *AuthManager
+	logger    *logger.Manager
+	routeMu   sync.RWMutex
+	routeOn   bool
+	route     RoutePolicyEngine
 
 	mu        sync.RWMutex
 	running   bool
@@ -74,6 +87,13 @@ type Server struct {
 	connWg   sync.WaitGroup
 
 	stopGracePeriod time.Duration
+}
+
+// SetLogger updates the runtime logger used by route diagnostics.
+func (s *Server) SetLogger(logManager *logger.Manager) {
+	s.mu.Lock()
+	s.logger = logManager
+	s.mu.Unlock()
 }
 
 // NewServer creates a proxy server from validated runtime config.
@@ -221,6 +241,18 @@ func (s *Server) SetAuthConfig(cfg config.AuthConfig) {
 	s.mu.Unlock()
 }
 
+// SetRoutePolicy updates routing rules for newly established outbound connections.
+func (s *Server) SetRoutePolicy(enabled bool, set config.RouteRuleSet) {
+	var engine RoutePolicyEngine
+	if enabled {
+		engine = NewRoutePolicyEngine(set)
+	}
+	s.routeMu.Lock()
+	s.routeOn = enabled
+	s.route = engine
+	s.routeMu.Unlock()
+}
+
 // ActiveConnections returns current active connection metadata.
 func (s *Server) ActiveConnections() []ConnectionSnapshot {
 	s.connMu.Lock()
@@ -233,12 +265,25 @@ func (s *Server) ActiveConnections() []ConnectionSnapshot {
 			Protocol:      item.protocol,
 			ClientAddr:    item.clientAddr,
 			TargetAddr:    item.targetAddr,
+			RouteRuleName: item.routeRuleName,
+			OutboundIP:    item.outboundIP,
+			OutboundIface: item.outboundIface,
 			UploadBytes:   item.uploadBytes.Load(),
 			DownloadBytes: item.downloadBytes.Load(),
 			OpenedAt:      item.openedAt.Format(time.RFC3339),
 		})
 	}
 	return snapshots
+}
+
+func (s *Server) setConnRoute(conn net.Conn, decision RouteDecision) {
+	s.connMu.Lock()
+	if item := s.conns[conn]; item != nil {
+		item.routeRuleName = decision.RuleName
+		item.outboundIP = decision.LocalIP
+		item.outboundIface = decision.InterfaceName
+	}
+	s.connMu.Unlock()
 }
 
 func (s *Server) openListeners() ([]net.Listener, error) {
@@ -372,6 +417,86 @@ func (s *Server) authenticator() *AuthManager {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.auth
+}
+
+func (s *Server) routeLogger() *logger.Manager {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.logger
+}
+
+func (s *Server) logRouteAccess(sourceAddr, targetAddr string, decision RouteDecision) {
+	logManager := s.routeLogger()
+	if logManager == nil || decision.RuleName == "" {
+		return
+	}
+	logManager.Info(routeLogSource, formatRouteLogLine(sourceAddr, targetAddr, decision),
+		zap.String("sourceIP", hostOnly(sourceAddr)),
+		zap.String("accessIP", hostOnly(targetAddr)),
+		zap.String("rule", decision.RuleName),
+		zap.String("action", routeActionText(decision)),
+	)
+}
+
+func (s *Server) logRouteFailure(sourceAddr, targetAddr string, decision RouteDecision, err error) {
+	logManager := s.routeLogger()
+	if logManager == nil || err == nil {
+		return
+	}
+	if decision.RuleName == "" {
+		return
+	}
+	message := formatRouteLogLine(sourceAddr, targetAddr, decision)
+	fields := []zap.Field{
+		zap.String("sourceIP", hostOnly(sourceAddr)),
+		zap.String("accessIP", hostOnly(targetAddr)),
+		zap.String("rule", decision.RuleName),
+		zap.String("action", routeActionText(decision)),
+		zap.String("mode", decision.OutboundMode),
+	}
+	if errors.Is(err, errRouteIntercepted) {
+		logManager.Info(routeLogSource, message, fields...)
+		return
+	}
+	fields = append(fields, zap.Error(err))
+	logManager.Warn(routeLogSource, message, fields...)
+}
+
+func formatRouteLogLine(sourceAddr, targetAddr string, decision RouteDecision) string {
+	return fmt.Sprintf("%s-%s-%s-触发规则(%s)-动作(%s)",
+		time.Now().Format(time.RFC3339),
+		hostOnly(sourceAddr),
+		hostOnly(targetAddr),
+		decision.RuleName,
+		routeActionText(decision),
+	)
+}
+
+func routeActionText(decision RouteDecision) string {
+	switch decision.OutboundMode {
+	case "intercept":
+		return "拦截"
+	case "interface":
+		if decision.InterfaceName != "" {
+			return "网卡(" + decision.InterfaceName + ")"
+		}
+		return "网卡"
+	case "local_ip":
+		if decision.LocalIP != "" {
+			return "本地IP(" + decision.LocalIP + ")"
+		}
+		return "本地IP"
+	default:
+		return "直连"
+	}
+}
+
+func hostOnly(addr string) string {
+	host, _, err := net.SplitHostPort(addr)
+	if err == nil {
+		return host
+	}
+	return addr
 }
 
 func (s *Server) recordAuthFailure() {

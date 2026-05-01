@@ -47,6 +47,9 @@ func Validate(cfg Config) error {
 	if err := validateAuth(cfg.Auth); err != nil {
 		return err
 	}
+	if err := ValidateRouteFileName(cfg.Route.ActiveFile); err != nil {
+		return fmt.Errorf("route active file: %w", err)
+	}
 
 	if cfg.Server.SOCKS5.Enabled && cfg.Server.HTTP.Enabled {
 		if cfg.Server.SOCKS5.Host == cfg.Server.HTTP.Host && cfg.Server.SOCKS5.Port == cfg.Server.HTTP.Port {
@@ -54,6 +57,34 @@ func Validate(cfg Config) error {
 		}
 	}
 
+	return nil
+}
+
+// ValidateRouteFileName checks a .rule file name without allowing path traversal.
+func ValidateRouteFileName(name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return errors.New("route file name is required")
+	}
+	if !strings.HasSuffix(name, ".rule") {
+		return errors.New("route file name must end with .rule")
+	}
+	if strings.Contains(name, "..") || strings.ContainsAny(name, `/\`) {
+		return errors.New("route file name must not contain path separators")
+	}
+	if strings.EqualFold(name, "config.yaml") {
+		return errors.New("route file name cannot be config.yaml")
+	}
+	base := strings.TrimSuffix(name, ".rule")
+	if base == "" {
+		return errors.New("route file name is required")
+	}
+	for _, r := range base {
+		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' || r == '_' {
+			continue
+		}
+		return errors.New("route file name may only contain letters, numbers, '-' and '_'")
+	}
 	return nil
 }
 

@@ -78,12 +78,13 @@ func (s *Server) handleHTTPTunnel(ctx context.Context, conn net.Conn, reader *bu
 	}
 	s.setConnTarget(conn, targetAddr)
 
-	target, err := s.dialProxyTarget(ctx, targetAddr)
+	target, decision, err := s.dialProxyTarget(ctx, "http", conn.RemoteAddr().String(), targetAddr)
 	if err != nil {
 		_, _ = conn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\nConnection: close\r\nContent-Length: 0\r\n\r\n"))
 		return fmt.Errorf("dial http connect target %s: %w", targetAddr, err)
 	}
 	defer closeConn(target)
+	s.setConnRoute(conn, decision)
 
 	setTCPKeepAlive(conn, time.Duration(s.cfg.Relay.KeepAliveSec)*time.Second)
 	setTCPKeepAlive(target, time.Duration(s.cfg.Relay.KeepAliveSec)*time.Second)
@@ -105,12 +106,13 @@ func (s *Server) handleHTTPForward(ctx context.Context, conn net.Conn, reader *b
 	}
 	s.setConnTarget(conn, targetAddr)
 
-	target, err := s.dialProxyTarget(ctx, targetAddr)
+	target, decision, err := s.dialProxyTarget(ctx, "http", conn.RemoteAddr().String(), targetAddr)
 	if err != nil {
 		_, _ = conn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\nConnection: close\r\nContent-Length: 0\r\n\r\n"))
 		return fmt.Errorf("dial http forward target %s: %w", targetAddr, err)
 	}
 	defer closeConn(target)
+	s.setConnRoute(conn, decision)
 
 	setTCPKeepAlive(conn, time.Duration(s.cfg.Relay.KeepAliveSec)*time.Second)
 	setTCPKeepAlive(target, time.Duration(s.cfg.Relay.KeepAliveSec)*time.Second)
@@ -132,7 +134,7 @@ func (s *Server) handleHTTPForward(ctx context.Context, conn net.Conn, reader *b
 	return relay(ctx, &bufferedConn{Conn: conn, reader: reader}, target, timeout, onUpload, onDownload)
 }
 
-func (s *Server) dialProxyTarget(ctx context.Context, targetAddr string) (net.Conn, error) {
+func (s *Server) dialProxyTarget(ctx context.Context, protocol, sourceAddr, targetAddr string) (net.Conn, RouteDecision, error) {
 	timeout := time.Duration(s.cfg.Relay.DialTimeoutSec) * time.Second
 	if timeout <= 0 {
 		timeout = 10 * time.Second
@@ -140,16 +142,33 @@ func (s *Server) dialProxyTarget(ctx context.Context, targetAddr string) (net.Co
 
 	host, port, err := net.SplitHostPort(targetAddr)
 	if err != nil {
-		return nil, err
+		return nil, RouteDecision{}, err
 	}
 
+	decision := s.routeDecision(RouteContext{
+		Protocol:   protocol,
+		TargetHost: host,
+		TargetPort: port,
+		IsIP:       net.ParseIP(host) != nil,
+	})
 	dialer := &net.Dialer{
 		Timeout:   timeout,
 		KeepAlive: time.Duration(s.cfg.Relay.KeepAliveSec) * time.Second,
 	}
+	if err := applyOutboundBinding(dialer, &decision); err != nil {
+		s.logRouteFailure(sourceAddr, targetAddr, decision, err)
+		return nil, decision, err
+	}
 
 	if ip := net.ParseIP(host); ip != nil {
-		return dialer.DialContext(ctx, "tcp", targetAddr)
+		conn, err := dialer.DialContext(ctx, "tcp", targetAddr)
+		if err == nil {
+			fillOutboundLocalIP(conn, &decision)
+			if decision.RuleName != "" {
+				s.logRouteAccess(sourceAddr, conn.RemoteAddr().String(), decision)
+			}
+		}
+		return conn, decision, err
 	}
 
 	resolveCtx, cancel := context.WithTimeout(ctx, timeout)
@@ -157,7 +176,14 @@ func (s *Server) dialProxyTarget(ctx context.Context, targetAddr string) (net.Co
 
 	addrs, err := net.DefaultResolver.LookupIPAddr(resolveCtx, host)
 	if err != nil || len(addrs) == 0 {
-		return dialer.DialContext(resolveCtx, "tcp", targetAddr)
+		conn, err := dialer.DialContext(resolveCtx, "tcp", targetAddr)
+		if err == nil {
+			fillOutboundLocalIP(conn, &decision)
+			if decision.RuleName != "" {
+				s.logRouteAccess(sourceAddr, conn.RemoteAddr().String(), decision)
+			}
+		}
+		return conn, decision, err
 	}
 
 	ordered := make([]net.IPAddr, 0, len(addrs))
@@ -181,7 +207,7 @@ func (s *Server) dialProxyTarget(ctx context.Context, targetAddr string) (net.Co
 	for _, addr := range ordered {
 		select {
 		case <-resolveCtx.Done():
-			return nil, resolveCtx.Err()
+			return nil, decision, resolveCtx.Err()
 		default:
 		}
 
@@ -190,12 +216,39 @@ func (s *Server) dialProxyTarget(ctx context.Context, targetAddr string) (net.Co
 		conn, err := dialer.DialContext(attemptCtx, "tcp", candidate)
 		attemptCancel()
 		if err == nil {
-			return conn, nil
+			fillOutboundLocalIP(conn, &decision)
+			if decision.RuleName != "" {
+				s.logRouteAccess(sourceAddr, conn.RemoteAddr().String(), decision)
+			}
+			return conn, decision, nil
 		}
 		lastErr = err
 	}
 
-	return nil, lastErr
+	return nil, decision, lastErr
+}
+
+func (s *Server) routeDecision(ctx RouteContext) RouteDecision {
+	s.routeMu.RLock()
+	enabled := s.routeOn
+	engine := s.route
+	s.routeMu.RUnlock()
+	if !enabled || engine == nil {
+		return RouteDecision{OutboundMode: "default"}
+	}
+	return engine.Match(ctx)
+}
+
+func fillOutboundLocalIP(conn net.Conn, decision *RouteDecision) {
+	if conn == nil || decision == nil {
+		return
+	}
+	if decision.LocalIP != "" {
+		return
+	}
+	if tcpAddr, ok := conn.LocalAddr().(*net.TCPAddr); ok && tcpAddr != nil && tcpAddr.IP != nil {
+		decision.LocalIP = tcpAddr.IP.String()
+	}
 }
 
 func connectTarget(req *http.Request) (string, error) {

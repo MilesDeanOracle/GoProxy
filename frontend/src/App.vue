@@ -7,6 +7,7 @@ import {
   Moon,
   Network,
   Power,
+  Route as RouteIcon,
   Settings,
   Shield,
   SlidersHorizontal,
@@ -20,6 +21,7 @@ import ActiveConnectionsPage from './pages/ActiveConnectionsPage.vue'
 import AuthPage from './pages/AuthPage.vue'
 import ConfigPage from './pages/ConfigPage.vue'
 import LogsPage from './pages/LogsPage.vue'
+import RouteRulesPage from './pages/RouteRulesPage.vue'
 import SettingsPage from './pages/SettingsPage.vue'
 import StatsPage from './pages/StatsPage.vue'
 import { useConfigStore } from './stores/config'
@@ -27,7 +29,7 @@ import { useLogStore } from './stores/logs'
 import { useServerStore } from './stores/server'
 import type { LogEntry, ServerStatus, StatsSnapshot } from './types'
 
-type PageKey = 'dashboard' | 'connections' | 'logs' | 'stats' | 'config' | 'auth' | 'settings'
+type PageKey = 'dashboard' | 'connections' | 'logs' | 'stats' | 'config' | 'routes' | 'auth' | 'settings'
 
 interface NavItem {
   key: PageKey
@@ -54,6 +56,7 @@ const navGroups: Array<{ title: string; items: NavItem[] }> = [
     title: '管理',
     items: [
       { key: 'config', label: '服务配置', icon: SlidersHorizontal },
+      { key: 'routes', label: '路由规则', icon: RouteIcon },
       { key: 'auth', label: '认证管理', icon: Shield },
       { key: 'settings', label: '应用设置', icon: Settings }
     ]
@@ -66,6 +69,7 @@ const pageLabels: Record<PageKey, string> = {
   logs: '实时日志',
   stats: '流量统计',
   config: '服务配置',
+  routes: '路由规则',
   auth: '认证管理',
   settings: '应用设置'
 }
@@ -222,6 +226,7 @@ onMounted(async () => {
               <ActiveConnectionsPage v-else-if="activePage === 'connections'" />
               <LogsPage v-else-if="activePage === 'logs'" />
               <StatsPage v-else-if="activePage === 'stats'" />
+              <RouteRulesPage v-else-if="activePage === 'routes'" />
               <AuthPage v-else-if="activePage === 'auth'" />
               <SettingsPage v-else-if="activePage === 'settings'" />
               <ConfigPage v-else />

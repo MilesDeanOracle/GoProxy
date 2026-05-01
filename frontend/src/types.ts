@@ -39,6 +39,7 @@ export interface AppConfig {
   relay: RelayConfig
   log: LogConfig
   ui: UIConfig
+  route: RouteConfig
 }
 
 export interface AuthConfig {
@@ -87,9 +88,57 @@ export interface ActiveConnection {
   protocol: string
   clientAddr: string
   targetAddr: string
+  routeRuleName: string
+  outboundIp: string
+  outboundIface: string
   uploadBytes: number
   downloadBytes: number
   openedAt: string
+}
+
+export interface RouteConfig {
+  enabled: boolean
+  activeFile: string
+}
+
+export interface RouteRuleSet {
+  name: string
+  version: number
+  updatedAt: string
+  description: string
+  rules: RouteRule[]
+}
+
+export interface RouteRule {
+  id: string
+  name: string
+  enabled: boolean
+  priority: number
+  protocols: string[]
+  matchType: 'ip' | 'cidr' | 'domain' | 'wildcard' | 'any'
+  targets: string[]
+  outbound: OutboundBinding
+  remark: string
+}
+
+export interface OutboundBinding {
+  mode: 'default' | 'interface' | 'intercept'
+  localIp: string
+  interface: string
+}
+
+export interface RouteFileInfo {
+  name: string
+  isActive: boolean
+  updatedAt: string
+}
+
+export interface NetworkInterface {
+  name: string
+  displayName: string
+  addresses: string[]
+  up: boolean
+  loopback: boolean
 }
 
 export interface LogEntry {

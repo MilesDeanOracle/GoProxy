@@ -2,6 +2,15 @@ package platform
 
 import "net"
 
+// NetworkInterface describes a local adapter and its addresses.
+type NetworkInterface struct {
+	Name        string   `json:"name"`
+	DisplayName string   `json:"displayName"`
+	Addresses   []string `json:"addresses"`
+	Up          bool     `json:"up"`
+	Loopback    bool     `json:"loopback"`
+}
+
 // LocalIPAddresses returns IPv4 addresses from active non-loopback interfaces.
 func LocalIPAddresses() ([]string, error) {
 	interfaces, err := net.Interfaces()
@@ -40,4 +49,30 @@ func LocalIPAddresses() ([]string, error) {
 		}
 	}
 	return ips, nil
+}
+
+// NetworkInterfaces returns local network adapters for route binding selection.
+func NetworkInterfaces() ([]NetworkInterface, error) {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]NetworkInterface, 0, len(interfaces))
+	for _, item := range interfaces {
+		info := NetworkInterface{
+			Name:        item.Name,
+			DisplayName: item.Name,
+			Up:          item.Flags&net.FlagUp != 0,
+			Loopback:    item.Flags&net.FlagLoopback != 0,
+		}
+		addrs, err := item.Addrs()
+		if err == nil {
+			for _, addr := range addrs {
+				info.Addresses = append(info.Addresses, addr.String())
+			}
+		}
+		result = append(result, info)
+	}
+	return result, nil
 }

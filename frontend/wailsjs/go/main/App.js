@@ -6,6 +6,14 @@ export function AddUser(arg1, arg2) {
   return window['go']['main']['App']['AddUser'](arg1, arg2);
 }
 
+export function CreateRouteFile(arg1) {
+  return window['go']['main']['App']['CreateRouteFile'](arg1);
+}
+
+export function DeleteRouteFile(arg1) {
+  return window['go']['main']['App']['DeleteRouteFile'](arg1);
+}
+
 export function GetActiveConnections() {
   return window['go']['main']['App']['GetActiveConnections']();
 }
@@ -16,6 +24,10 @@ export function GetConfig() {
 
 export function GetLocalIPAddresses() {
   return window['go']['main']['App']['GetLocalIPAddresses']();
+}
+
+export function GetNetworkInterfaces() {
+  return window['go']['main']['App']['GetNetworkInterfaces']();
 }
 
 export function GetRecentLogs(arg1) {
@@ -38,6 +50,14 @@ export function HideToTray() {
   return window['go']['main']['App']['HideToTray']();
 }
 
+export function ListRouteFiles() {
+  return window['go']['main']['App']['ListRouteFiles']();
+}
+
+export function LoadRouteFile(arg1) {
+  return window['go']['main']['App']['LoadRouteFile'](arg1);
+}
+
 export function QuitApp() {
   return window['go']['main']['App']['QuitApp']();
 }
@@ -52,6 +72,14 @@ export function ResetUserPassword(arg1, arg2) {
 
 export function SaveConfig(arg1) {
   return window['go']['main']['App']['SaveConfig'](arg1);
+}
+
+export function SaveRouteFile(arg1, arg2) {
+  return window['go']['main']['App']['SaveRouteFile'](arg1, arg2);
+}
+
+export function SetActiveRouteFile(arg1) {
+  return window['go']['main']['App']['SetActiveRouteFile'](arg1);
 }
 
 export function SetAuthEnabled(arg1) {

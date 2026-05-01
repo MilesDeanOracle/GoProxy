@@ -7,6 +7,7 @@ type Config struct {
 	Relay  RelayConfig  `yaml:"relay" json:"relay"`
 	Log    LogConfig    `yaml:"log" json:"log"`
 	UI     UIConfig     `yaml:"ui" json:"ui"`
+	Route  RouteConfig  `yaml:"route" json:"route"`
 }
 
 // ServerConfig contains inbound protocol listener settings.
@@ -61,6 +62,48 @@ type UIConfig struct {
 	TrayStatusAndIP bool   `yaml:"tray_status_and_ip" json:"trayStatusAndIp"`
 }
 
+// RouteConfig contains route policy runtime switches.
+type RouteConfig struct {
+	Enabled    bool   `yaml:"enabled" json:"enabled"`
+	ActiveFile string `yaml:"active_file" json:"activeFile"`
+}
+
+// RouteRuleSet stores a complete .rule file.
+type RouteRuleSet struct {
+	Name        string      `yaml:"name" json:"name"`
+	Version     int         `yaml:"version" json:"version"`
+	UpdatedAt   string      `yaml:"updated_at" json:"updatedAt"`
+	Description string      `yaml:"description" json:"description"`
+	Rules       []RouteRule `yaml:"rules" json:"rules"`
+}
+
+// RouteRule describes one destination matching and outbound binding rule.
+type RouteRule struct {
+	ID        string          `yaml:"id" json:"id"`
+	Name      string          `yaml:"name" json:"name"`
+	Enabled   bool            `yaml:"enabled" json:"enabled"`
+	Priority  int             `yaml:"priority" json:"priority"`
+	Protocols []string        `yaml:"protocols" json:"protocols"`
+	MatchType string          `yaml:"match_type" json:"matchType"`
+	Targets   []string        `yaml:"targets" json:"targets"`
+	Outbound  OutboundBinding `yaml:"outbound" json:"outbound"`
+	Remark    string          `yaml:"remark" json:"remark"`
+}
+
+// OutboundBinding chooses how a matched connection binds its local address.
+type OutboundBinding struct {
+	Mode      string `yaml:"mode" json:"mode"`
+	LocalIP   string `yaml:"local_ip" json:"localIp"`
+	Interface string `yaml:"interface" json:"interface"`
+}
+
+// RouteFileInfo describes one route policy file for UI selection.
+type RouteFileInfo struct {
+	Name      string `json:"name"`
+	IsActive  bool   `json:"isActive"`
+	UpdatedAt string `json:"updatedAt"`
+}
+
 // Default returns a validated baseline configuration.
 func Default() Config {
 	return Config{
@@ -100,6 +143,10 @@ func Default() Config {
 			ShowTrayIcon:    true,
 			CloseToTray:     true,
 			TrayStatusAndIP: true,
+		},
+		Route: RouteConfig{
+			Enabled:    false,
+			ActiveFile: "default.rule",
 		},
 	}
 }

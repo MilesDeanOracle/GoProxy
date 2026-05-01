@@ -12,6 +12,12 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+const (
+	appTitle     = "GoProxy - V1.0.0"
+	windowWidth  = 1080
+	windowHeight = 720
+)
+
 func main() {
 	app, err := NewApp()
 	if err != nil {
@@ -19,12 +25,13 @@ func main() {
 	}
 
 	err = wails.Run(&options.App{
-		Title:            "GoProxy - V1.0.0",
-		Width:            1080,
-		Height:           720,
+		Title:            appTitle,
+		Width:            windowWidth,
+		Height:           windowHeight,
 		MinWidth:         900,
 		MinHeight:        600,
-		MaxWidth:         1080,
+		MaxWidth:         windowWidth,
+		MaxHeight:        windowHeight,
 		BackgroundColour: options.NewRGBA(245, 247, 250, 255),
 		AssetServer: &assetserver.Options{
 			Assets: assets,

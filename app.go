@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
@@ -34,6 +35,7 @@ type App struct {
 	configPath    string
 	logPath       string
 	configManager *config.Manager
+	routeManager  *config.RouteFileManager
 	logger        *logger.Manager
 
 	cfg        config.Config
@@ -69,6 +71,17 @@ func NewAppWithPaths(configPath, logPath string) (*App, error) {
 			return nil, fmt.Errorf("write default config: %w", err)
 		}
 	}
+	routeManager := config.NewRouteFileManager(filepath.Dir(configPath))
+	activeFile, err := routeManager.EnsureActive(cfg.Route.ActiveFile)
+	if err != nil {
+		return nil, fmt.Errorf("initialize route files: %w", err)
+	}
+	if cfg.Route.ActiveFile != activeFile {
+		cfg.Route.ActiveFile = activeFile
+		if err := manager.Save(cfg); err != nil {
+			return nil, fmt.Errorf("save active route file fallback: %w", err)
+		}
+	}
 
 	logManager, err := logger.NewManager(cfg.Log, logPath)
 	if err != nil {
@@ -76,15 +89,21 @@ func NewAppWithPaths(configPath, logPath string) (*App, error) {
 	}
 
 	collector := stats.NewCollector()
+	server := proxy.NewServer(cfg, collector)
+	server.SetLogger(logManager)
+	if err := applyRoutePolicy(server, routeManager, cfg); err != nil {
+		return nil, fmt.Errorf("load route policy: %w", err)
+	}
 	return &App{
 		configPath:    configPath,
 		logPath:       logPath,
 		configManager: manager,
+		routeManager:  routeManager,
 		logger:        logManager,
 		cfg:           cfg,
 		runtimeCfg:    cfg,
 		collector:     collector,
-		server:        proxy.NewServer(cfg, collector),
+		server:        server,
 		tray:          platform.NewTrayManager(cfg.UI.ShowTrayIcon, cfg.UI.CloseToTray, cfg.UI.TrayStatusAndIP),
 	}, nil
 }
@@ -94,8 +113,8 @@ func (a *App) startup(ctx context.Context) {
 	a.mu.Lock()
 	a.ctx = ctx
 
-	// 禁用最大化按钮, 但允许自由调整窗口高度
-	go platform.DisableMaximizeButton("GoProxy")
+	// Disable the native maximize affordance while keeping normal window controls.
+	go platform.DisableMaximizeButton(appTitle)
 
 	if a.tray != nil {
 		a.tray.Startup(ctx)
@@ -184,6 +203,9 @@ func (a *App) SaveConfig(cfg config.Config) error {
 		oldLogger := a.logger
 		a.logger = newLogger
 		a.subscribeLoggerLocked(newLogger)
+		if a.server != nil {
+			a.server.SetLogger(newLogger)
+		}
 		if oldLogger != nil {
 			_ = oldLogger.Close()
 		}
@@ -191,10 +213,20 @@ func (a *App) SaveConfig(cfg config.Config) error {
 	if !running {
 		a.collector = stats.NewCollector()
 		a.server = proxy.NewServer(cfg, a.collector)
+		a.server.SetLogger(a.logger)
+		if err := a.applyRoutePolicyLocked(cfg); err != nil {
+			return err
+		}
 		a.runtimeCfg = cfg
 	} else if !reflect.DeepEqual(oldCfg.Auth, cfg.Auth) && a.server != nil {
 		a.server.SetAuthConfig(cfg.Auth)
 		a.runtimeCfg.Auth = cfg.Auth
+	}
+	if running && routeConfigChanged(oldCfg, cfg) {
+		if err := a.applyRoutePolicyLocked(cfg); err != nil {
+			return err
+		}
+		a.runtimeCfg.Route = cfg.Route
 	}
 
 	if a.logger != nil {
@@ -216,6 +248,10 @@ func (a *App) StartServer() error {
 	if a.server == nil || !sameRuntimeConfig(a.cfg, a.runtimeCfg) {
 		a.collector = stats.NewCollector()
 		a.server = proxy.NewServer(a.cfg, a.collector)
+		a.server.SetLogger(a.logger)
+		if err := a.applyRoutePolicyLocked(a.cfg); err != nil {
+			return err
+		}
 		a.runtimeCfg = a.cfg
 	}
 
@@ -323,6 +359,86 @@ func (a *App) GetTrayState() platform.TrayState {
 // GetLocalIPAddresses returns IPv4 addresses from active local network adapters.
 func (a *App) GetLocalIPAddresses() ([]string, error) {
 	return platform.LocalIPAddresses()
+}
+
+// GetNetworkInterfaces returns local adapters for route outbound binding.
+func (a *App) GetNetworkInterfaces() ([]platform.NetworkInterface, error) {
+	return platform.NetworkInterfaces()
+}
+
+// ListRouteFiles lists all available .rule files.
+func (a *App) ListRouteFiles() ([]config.RouteFileInfo, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	return a.routeManager.List(a.cfg.Route.ActiveFile)
+}
+
+// LoadRouteFile loads one route rule file.
+func (a *App) LoadRouteFile(name string) (config.RouteRuleSet, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	return a.routeManager.Load(name)
+}
+
+// SaveRouteFile validates and saves one route rule file.
+func (a *App) SaveRouteFile(name string, set config.RouteRuleSet) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if err := a.routeManager.Save(name, set); err != nil {
+		return err
+	}
+	if name == a.cfg.Route.ActiveFile {
+		if err := a.applyRoutePolicyLocked(a.cfg); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// CreateRouteFile creates a new route rule file.
+func (a *App) CreateRouteFile(name string) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	return a.routeManager.Create(name)
+}
+
+// DeleteRouteFile removes a non-active route rule file.
+func (a *App) DeleteRouteFile(name string) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if name == a.cfg.Route.ActiveFile {
+		return errors.New("active route file cannot be deleted")
+	}
+	return a.routeManager.Delete(name)
+}
+
+// SetActiveRouteFile switches the active route policy file for new connections.
+func (a *App) SetActiveRouteFile(name string) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if _, err := a.routeManager.Load(name); err != nil {
+		return err
+	}
+	cfg := a.cfg
+	cfg.Route.ActiveFile = name
+	if err := a.configManager.Save(cfg); err != nil {
+		return err
+	}
+	a.cfg = cfg
+	if err := a.applyRoutePolicyLocked(cfg); err != nil {
+		return err
+	}
+	a.runtimeCfg.Route = cfg.Route
+	if a.logger != nil {
+		a.logger.Info(appSource, "route active file changed", zap.String("file", name))
+	}
+	return nil
 }
 
 func (a *App) trayActions() platform.TrayActions {
@@ -545,4 +661,28 @@ func listenerConfigChanged(a, b config.Config) bool {
 
 func sameRuntimeConfig(a, b config.Config) bool {
 	return a.Server == b.Server && reflect.DeepEqual(a.Auth, b.Auth) && a.Relay == b.Relay
+}
+
+func routeConfigChanged(a, b config.Config) bool {
+	return a.Route != b.Route
+}
+
+func (a *App) applyRoutePolicyLocked(cfg config.Config) error {
+	return applyRoutePolicy(a.server, a.routeManager, cfg)
+}
+
+func applyRoutePolicy(server *proxy.Server, routeManager *config.RouteFileManager, cfg config.Config) error {
+	if server == nil || routeManager == nil {
+		return nil
+	}
+	if !cfg.Route.Enabled {
+		server.SetRoutePolicy(false, config.RouteRuleSet{})
+		return nil
+	}
+	set, err := routeManager.Load(cfg.Route.ActiveFile)
+	if err != nil {
+		return err
+	}
+	server.SetRoutePolicy(true, set)
+	return nil
 }

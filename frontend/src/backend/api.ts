@@ -1,19 +1,35 @@
-import type { ActiveConnection, AppConfig, LogEntry, ServerStatus, StatsSnapshot } from '../types'
+import type {
+  ActiveConnection,
+  AppConfig,
+  LogEntry,
+  NetworkInterface,
+  RouteFileInfo,
+  RouteRuleSet,
+  ServerStatus,
+  StatsSnapshot
+} from '../types'
 import {
   AddUser,
+  CreateRouteFile,
+  DeleteRouteFile,
   GetActiveConnections,
   GetConfig,
   GetLocalIPAddresses,
+  GetNetworkInterfaces,
   GetRecentLogs,
   GetServerStatus,
   GetStats,
   GetTrayState,
   HideToTray,
+  ListRouteFiles,
+  LoadRouteFile,
   QuitApp,
   RemoveUser,
   ResetUserPassword,
+  SaveRouteFile,
   SaveConfig,
   SetAuthEnabled,
+  SetActiveRouteFile,
   ShowWindow,
   StartServer,
   StopServer
@@ -30,8 +46,36 @@ export function getLocalIPAddresses() {
   return GetLocalIPAddresses() as unknown as Promise<string[]>
 }
 
+export function getNetworkInterfaces() {
+  return GetNetworkInterfaces() as unknown as Promise<NetworkInterface[]>
+}
+
 export function saveConfig(config: AppConfig) {
   return SaveConfig(config as unknown as Parameters<typeof SaveConfig>[0])
+}
+
+export function listRouteFiles() {
+  return ListRouteFiles() as unknown as Promise<RouteFileInfo[]>
+}
+
+export function loadRouteFile(name: string) {
+  return LoadRouteFile(name) as unknown as Promise<RouteRuleSet>
+}
+
+export function saveRouteFile(name: string, ruleSet: RouteRuleSet) {
+  return SaveRouteFile(name, ruleSet as unknown as Parameters<typeof SaveRouteFile>[1])
+}
+
+export function createRouteFile(name: string) {
+  return CreateRouteFile(name)
+}
+
+export function deleteRouteFile(name: string) {
+  return DeleteRouteFile(name)
+}
+
+export function setActiveRouteFile(name: string) {
+  return SetActiveRouteFile(name)
 }
 
 export function startServer() {

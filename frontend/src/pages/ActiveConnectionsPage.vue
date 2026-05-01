@@ -100,6 +100,8 @@ onUnmounted(() => {
               <th>协议</th>
               <th>客户端</th>
               <th>目标</th>
+              <th>命中规则</th>
+              <th>出口</th>
               <th>实时上行</th>
               <th>实时下行</th>
               <th>累计上行</th>
@@ -112,6 +114,8 @@ onUnmounted(() => {
               <td><span class="proto" :class="protocolClass(conn.protocol)">{{ formatProtocol(conn.protocol) }}</span></td>
               <td>{{ conn.clientAddr }}</td>
               <td>{{ conn.targetAddr || '-' }}</td>
+              <td>{{ conn.routeRuleName || '-' }}</td>
+              <td>{{ conn.outboundIface || conn.outboundIp || '-' }}</td>
               <td>{{ formatRate(conn.uploadRate) }}</td>
               <td>{{ formatRate(conn.downloadRate) }}</td>
               <td>{{ formatBytes(conn.uploadBytes) }}</td>
@@ -119,7 +123,7 @@ onUnmounted(() => {
               <td>{{ shortTime(conn.openedAt) }}</td>
             </tr>
             <tr v-if="rows.length === 0">
-              <td colspan="8" class="table-empty">暂无活跃连接</td>
+              <td colspan="10" class="table-empty">暂无活跃连接</td>
             </tr>
           </tbody>
         </table>

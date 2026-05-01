@@ -60,12 +60,13 @@ func (s *Server) handleSOCKS5(ctx context.Context, conn net.Conn) error {
 
 	// Reuse the HTTP proxy dial strategy so domain targets prefer IPv4
 	// before falling back to IPv6 on dual-stack networks.
-	target, err := s.dialProxyTarget(ctx, targetAddr)
+	target, decision, err := s.dialProxyTarget(ctx, "socks5", conn.RemoteAddr().String(), targetAddr)
 	if err != nil {
 		_ = writeSOCKS5Reply(conn, socksReplyHostUnreachable, nil)
 		return fmt.Errorf("dial socks5 target %s: %w", targetAddr, err)
 	}
 	defer closeConn(target)
+	s.setConnRoute(conn, decision)
 
 	setTCPKeepAlive(conn, time.Duration(s.cfg.Relay.KeepAliveSec)*time.Second)
 	setTCPKeepAlive(target, time.Duration(s.cfg.Relay.KeepAliveSec)*time.Second)

@@ -8,11 +8,11 @@ import (
 )
 
 var (
-	user32                 = syscall.NewLazyDLL("user32.dll")
-	procFindWindowW        = user32.NewProc("FindWindowW")
-	procGetWindowLongPtrW  = user32.NewProc("GetWindowLongPtrW")
-	procSetWindowLongPtrW  = user32.NewProc("SetWindowLongPtrW")
-	procSetWindowPos       = user32.NewProc("SetWindowPos")
+	user32                = syscall.NewLazyDLL("user32.dll")
+	procFindWindowW       = user32.NewProc("FindWindowW")
+	procGetWindowLongPtrW = user32.NewProc("GetWindowLongPtrW")
+	procSetWindowLongPtrW = user32.NewProc("SetWindowLongPtrW")
+	procSetWindowPos      = user32.NewProc("SetWindowPos")
 )
 
 const (
@@ -33,6 +33,12 @@ func DisableMaximizeButton(windowTitle string) {
 		uintptr(unsafe.Pointer(className)),
 		uintptr(unsafe.Pointer(title)),
 	)
+	if hwnd == 0 {
+		hwnd, _, _ = procFindWindowW.Call(
+			uintptr(unsafe.Pointer(className)),
+			0,
+		)
+	}
 	if hwnd == 0 {
 		return
 	}

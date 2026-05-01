@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 
 	"gitee.com/jiuhuidalan1/goproxy/internal/config"
 	"gitee.com/jiuhuidalan1/goproxy/internal/proxy"
@@ -39,6 +40,18 @@ func main() {
 
 	collector := stats.NewCollector()
 	server := proxy.NewServer(cfg, collector)
+	routeManager := config.NewRouteFileManager(filepath.Dir(*configPath))
+	activeFile, err := routeManager.EnsureActive(cfg.Route.ActiveFile)
+	if err != nil {
+		log.Fatalf("initialize route files: %v", err)
+	}
+	if cfg.Route.Enabled {
+		set, err := routeManager.Load(activeFile)
+		if err != nil {
+			log.Fatalf("load route file: %v", err)
+		}
+		server.SetRoutePolicy(true, set)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()

@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>新增规则</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #ffffff;
+    --fg: #0a0a0a;
+    --muted: #71717a;
+    --muted-bg: #f4f4f5;
+    --border: #e4e4e7;
+    --accent: #10b981;
+    --accent-hover: #059669;
+    --radius: 8px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "SF Mono", "Fira Code", "Fira Mono", "Roboto Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  }
+
+  body {
+    font-family: var(--font);
+    background: #18181b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Overlay */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    animation: fadeIn 0.15s ease;
+  }
+
+  /* Dialog */
+  .dialog {
+    background: var(--bg);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 480px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    animation: dialogIn 0.2s ease;
+    overflow: hidden;
+  }
+
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes dialogIn { from { opacity: 0; transform: scale(0.96) translateY(4px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+
+  /* Header */
+  .dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+  }
+
+  .dialog-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .dialog-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: rgba(16, 185, 129, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .dialog-icon svg {
+    width: 16px;
+    height: 16px;
+    color: var(--accent);
+  }
+
+  .dialog-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--fg);
+    line-height: 1.3;
+  }
+
+  .dialog-desc {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 1px;
+  }
+
+  .close-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+
+  .close-btn:hover {
+    background: var(--muted-bg);
+    color: var(--fg);
+  }
+
+  /* Divider */
+  .divider {
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Body */
+  .dialog-body {
+    padding: 20px;
+    max-height: 65vh;
+    overflow-y: auto;
+  }
+
+  .dialog-body::-webkit-scrollbar { width: 4px; }
+  .dialog-body::-webkit-scrollbar-track { background: transparent; }
+  .dialog-body::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 2px; }
+
+  /* Section */
+  .section { margin-bottom: 20px; }
+  .section:last-child { margin-bottom: 0; }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .section-bar {
+    width: 3px;
+    height: 14px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .section-bar.green { background: #10b981; }
+  .section-bar.cyan { background: #06b6d4; }
+  .section-bar.amber { background: #f59e0b; }
+  .section-bar.gray { background: #a1a1aa; }
+
+  .section-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--fg);
+  }
+
+  /* Form Row */
+  .form-row {
+    display: grid;
+    grid-template-columns: 88px 1fr;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .form-row:last-child { margin-bottom: 0; }
+
+  .form-row--top {
+    align-items: start;
+  }
+
+  .form-label {
+    font-size: 13px;
+    color: var(--muted);
+    text-align: right;
+    line-height: 1;
+  }
+
+  .form-row--top .form-label {
+    margin-top: 7px;
+  }
+
+  /* Input */
+  .input {
+    height: 32px;
+    padding: 0 10px;
+    font-size: 13px;
+    font-family: var(--font);
+    color: var(--fg);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    width: 100%;
+  }
+
+  .input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+  }
+
+  .input::placeholder { color: #b4b4ba; }
+
+  .input-mono {
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  .input-sm {
+    width: 100px;
+  }
+
+  /* ID display */
+  .id-display {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .id-code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--muted);
+    background: var(--muted-bg);
+    padding: 6px 10px;
+    border-radius: 6px;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    user-select: all;
+  }
+
+  .copy-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+
+  .copy-btn:hover {
+    background: var(--muted-bg);
+    color: var(--fg);
+  }
+
+  .copy-btn svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  /* Switch */
+  .switch-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .switch {
+    position: relative;
+    width: 32px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+  }
+
+  .switch-track {
+    position: absolute;
+    inset: 0;
+    background: #d4d4d8;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .switch-track::after {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+  }
+
+  .switch input:checked + .switch-track {
+    background: var(--accent);
+  }
+
+  .switch input:checked + .switch-track::after {
+    transform: translateX(14px);
+  }
+
+  .switch input:focus-visible + .switch-track {
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+  }
+
+  .switch-text {
+    font-size: 13px;
+    color: var(--muted);
+    transition: color 0.15s;
+  }
+
+  .switch-text.active {
+    color: var(--accent);
+  }
+
+  /* Select */
+  .select-wrap {
+    position: relative;
+  }
+
+  .select {
+    height: 32px;
+    padding: 0 30px 0 10px;
+    font-size: 13px;
+    font-family: var(--font);
+    color: var(--fg);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    outline: none;
+    cursor: pointer;
+    width: 100%;
+    appearance: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+
+  .select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+  }
+
+  .select-arrow {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: var(--muted);
+  }
+
+  .select-arrow svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  /* Textarea */
+  .textarea {
+    padding: 8px 10px;
+    font-size: 12px;
+    font-family: var(--font-mono);
+    color: var(--fg);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    outline: none;
+    resize: none;
+    width: 100%;
+    min-height: 88px;
+    line-height: 1.6;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+
+  .textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+  }
+
+  .textarea::placeholder { color: #b4b4ba; }
+
+  .textarea-hint {
+    font-size: 12px;
+    color: #b4b4ba;
+    margin-top: 5px;
+  }
+
+  .textarea-plain {
+    font-family: var(--font);
+    font-size: 13px;
+    min-height: 56px;
+  }
+
+  /* Footer */
+  .dialog-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 14px 20px;
+  }
+
+  .btn {
+    height: 32px;
+    padding: 0 16px;
+    font-size: 13px;
+    font-family: var(--font);
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-weight: 500;
+  }
+
+  .btn-ghost {
+    background: var(--bg);
+    color: var(--fg);
+  }
+
+  .btn-ghost:hover {
+    background: var(--muted-bg);
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  .btn-primary:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+  }
+</style>
+</head>
+<body>
+
+<div class="overlay">
+  <div class="dialog">
+
+    <!-- Header -->
+    <div class="dialog-header">
+      <div class="dialog-header-left">
+        <div class="dialog-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </div>
+        <div>
+          <div class="dialog-title">新增规则</div>
+          <div class="dialog-desc">配置代理规则以控制流量转发</div>
+        </div>
+      </div>
+      <button class="close-btn" title="关闭">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1 1l12 12M13 1L1 13"/></svg>
+      </button>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Body -->
+    <div class="dialog-body">
+
+      <!-- 基本信息 -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-bar green"></div>
+          <div class="section-title">基本信息</div>
+        </div>
+        <div class="form-row">
+          <label class="form-label">规则名称</label>
+          <input class="input" type="text" value="新规则" />
+        </div>
+        <div class="form-row">
+          <label class="form-label">规则 ID</label>
+          <div class="id-display">
+            <code class="id-code">rule-1777618176163</code>
+            <button class="copy-btn" title="复制">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="form-label">优先级</label>
+          <input class="input input-sm" type="number" value="100" />
+        </div>
+        <div class="form-row">
+          <label class="form-label">启用</label>
+          <div class="switch-row">
+            <label class="switch">
+              <input type="checkbox" checked id="enableSwitch" />
+              <span class="switch-track"></span>
+            </label>
+            <span class="switch-text active" id="enableText">已启用</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider" style="margin-bottom: 20px;"></div>
+
+      <!-- 匹配条件 -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-bar cyan"></div>
+          <div class="section-title">匹配条件</div>
+        </div>
+        <div class="form-row">
+          <label class="form-label">适用协议</label>
+          <div class="select-wrap">
+            <select class="select">
+              <option value="all">全部协议</option>
+              <option value="socks5">socks5</option>
+              <option value="http">http</option>
+            </select>
+            <span class="select-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="form-label">匹配类型</label>
+          <div class="select-wrap">
+            <select class="select">
+              <option value="domain">域名</option>
+              <option value="ip">IP 地址</option>
+              <option value="cidr">CIDR 网段</option>
+              <option value="regex">正则表达式</option>
+              <option value="keyword">关键词</option>
+            </select>
+            <span class="select-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
+          </div>
+        </div>
+        <div class="form-row form-row--top">
+          <label class="form-label">目标地址</label>
+          <div>
+            <textarea class="textarea" placeholder="每行一个目标地址&#10;例：&#10;example.com&#10;*.google.com&#10;192.168.1.0/24"></textarea>
+            <div class="textarea-hint">每行一个目标地址，支持通配符和 CIDR 格式</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider" style="margin-bottom: 20px;"></div>
+
+      <!-- 出口设置 -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-bar amber"></div>
+          <div class="section-title">出口设置</div>
+        </div>
+        <div class="form-row">
+          <label class="form-label">出口模式</label>
+          <div class="select-wrap">
+            <select class="select">
+              <option value="direct">直连</option>
+              <option value="nic">网卡</option>
+              <option value="block">拦截</option>
+            </select>
+            <span class="select-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider" style="margin-bottom: 20px;"></div>
+
+      <!-- 备注 -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-bar gray"></div>
+          <div class="section-title">备注</div>
+        </div>
+        <div class="form-row form-row--top">
+          <label class="form-label">备注</label>
+          <textarea class="textarea textarea-plain" placeholder="规则说明"></textarea>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Footer -->
+    <div class="dialog-footer">
+      <button class="btn btn-ghost">取消</button>
+      <button class="btn btn-primary">保存规则</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // Switch text toggle
+  const switchInput = document.getElementById('enableSwitch');
+  const switchText = document.getElementById('enableText');
+  switchInput.addEventListener('change', function () {
+    if (this.checked) {
+      switchText.textContent = '已启用';
+      switchText.classList.add('active');
+    } else {
+      switchText.textContent = '已禁用';
+      switchText.classList.remove('active');
+    }
+  });
+
+  // Copy button
+  const copyBtn = document.querySelector('.copy-btn');
+  copyBtn.addEventListener('click', function () {
+    const code = document.querySelector('.id-code').textContent;
+    navigator.clipboard.writeText(code).then(() => {
+      const original = this.innerHTML;
+      this.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M20 6L9 17l-5-5"/></svg>';
+      this.style.color = 'var(--accent)';
+      setTimeout(() => {
+        this.innerHTML = original;
+        this.style.color = '';
+      }, 1500);
+    });
+  });
+</script>
+
+</body>
+</html>
