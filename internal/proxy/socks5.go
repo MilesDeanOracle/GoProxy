@@ -58,11 +58,9 @@ func (s *Server) handleSOCKS5(ctx context.Context, conn net.Conn) error {
 	}
 	s.setConnTarget(conn, targetAddr)
 
-	dialer := &net.Dialer{
-		Timeout:   time.Duration(s.cfg.Relay.DialTimeoutSec) * time.Second,
-		KeepAlive: time.Duration(s.cfg.Relay.KeepAliveSec) * time.Second,
-	}
-	target, err := dialer.DialContext(ctx, "tcp", targetAddr)
+	// Reuse the HTTP proxy dial strategy so domain targets prefer IPv4
+	// before falling back to IPv6 on dual-stack networks.
+	target, err := s.dialProxyTarget(ctx, targetAddr)
 	if err != nil {
 		_ = writeSOCKS5Reply(conn, socksReplyHostUnreachable, nil)
 		return fmt.Errorf("dial socks5 target %s: %w", targetAddr, err)

@@ -42,18 +42,18 @@ func (t *TrayManager) updateNativeTray() {
 		if menu.status != nil {
 			menu.status.Show()
 			if running {
-				menu.status.SetTitle("Service Status: Running")
+				menu.status.SetTitle("服务状态: 运行中")
 			} else {
-				menu.status.SetTitle("Service Status: Stopped")
+				menu.status.SetTitle("服务状态: 已停止")
 			}
 		}
 		if menu.ips != nil {
 			menu.ips.Show()
-			text := "Not detected"
+			text := "未检测到"
 			if len(localIPs) > 0 {
 				text = strings.Join(localIPs, " / ")
 			}
-			menu.ips.SetTitle("Local IP: " + text)
+			menu.ips.SetTitle("本地IP: " + text)
 		}
 		if menu.socks != nil {
 			menu.socks.Show()
@@ -81,15 +81,15 @@ func (t *TrayManager) updateNativeTray() {
 	if running {
 		menu.start.Disable()
 		menu.stop.Enable()
-		systray.SetTitle("GoProxy Running")
-		systray.SetTooltip("GoProxy - Service Running")
+		systray.SetTitle("GoProxy 运行中")
+		systray.SetTooltip("GoProxy - 服务运行中")
 		return
 	}
 
 	menu.start.Enable()
 	menu.stop.Disable()
-	systray.SetTitle("GoProxy Stopped")
-	systray.SetTooltip("GoProxy - Service Stopped")
+	systray.SetTitle("GoProxy 已停止")
+	systray.SetTooltip("GoProxy - 服务已停止")
 }
 
 func emptyAsDash(value string) string {
