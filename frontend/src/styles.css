@@ -276,10 +276,7 @@ input {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 10px 9px;
-  background: color-mix(in srgb, var(--bg3) 72%, transparent);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  padding: 2px 0;
 }
 
 .version-label {

@@ -3,6 +3,7 @@
 package platform
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/getlantern/systray"
@@ -49,11 +50,12 @@ func (t *TrayManager) updateNativeTray() {
 		}
 		if menu.ips != nil {
 			menu.ips.Show()
-			text := "未检测到"
+			menu.ips.SetTitle("网卡 IP：" + trayIPSummary(localIPs))
 			if len(localIPs) > 0 {
-				text = strings.Join(localIPs, " / ")
+				menu.ips.SetTooltip(strings.Join(localIPs, "\n"))
+			} else {
+				menu.ips.SetTooltip("未检测到网卡 IP")
 			}
-			menu.ips.SetTitle("网卡 IP：" + text)
 		}
 		if menu.socks != nil {
 			menu.socks.Show()
@@ -61,7 +63,7 @@ func (t *TrayManager) updateNativeTray() {
 		}
 		if menu.http != nil {
 			menu.http.Show()
-			menu.http.SetTitle("HTTPS：" + emptyAsDash(httpAddr))
+			menu.http.SetTitle("HTTP：" + emptyAsDash(httpAddr))
 		}
 	} else {
 		if menu.status != nil {
@@ -94,4 +96,18 @@ func emptyAsDash(value string) string {
 		return "-"
 	}
 	return value
+}
+
+func trayIPSummary(localIPs []string) string {
+	if len(localIPs) == 0 {
+		return "未检测到"
+	}
+	first := strings.TrimSpace(localIPs[0])
+	if first == "" {
+		return "未检测到"
+	}
+	if len(localIPs) == 1 {
+		return first
+	}
+	return fmt.Sprintf("%s 等 %d 个", first, len(localIPs))
 }

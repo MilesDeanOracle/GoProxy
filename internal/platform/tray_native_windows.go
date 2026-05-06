@@ -39,7 +39,7 @@ func (t *TrayManager) startNativeTray(icon []byte) {
 
 			menu := nativeTrayMenu{
 				status: systray.AddMenuItem("服务状态: 已停止", "当前代理服务状态"),
-				ips:    systray.AddMenuItem("本地IP: 未检测到", "当前局域网IP地址"),
+				ips:    systray.AddMenuItem("网卡 IP: 未检测到", "当前网卡 IP 地址"),
 				socks:  systray.AddMenuItem("SOCKS5: -", "SOCKS5 监听地址"),
 				http:   systray.AddMenuItem("HTTP: -", "HTTP CONNECT 监听地址"),
 			}
