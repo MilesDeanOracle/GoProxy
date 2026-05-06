@@ -6,6 +6,10 @@ export function AddUser(arg1, arg2) {
   return window['go']['main']['App']['AddUser'](arg1, arg2);
 }
 
+export function ClearLogs() {
+  return window['go']['main']['App']['ClearLogs']();
+}
+
 export function CreateRouteFile(arg1) {
   return window['go']['main']['App']['CreateRouteFile'](arg1);
 }

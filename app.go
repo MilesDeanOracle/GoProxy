@@ -345,6 +345,35 @@ func (a *App) GetRecentLogs(n int) []logger.Entry {
 	return a.logger.Recent(n)
 }
 
+// ClearLogs clears the in-memory UI logs and removes the current runtime log file.
+func (a *App) ClearLogs() error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	oldLogger := a.logger
+	if oldLogger != nil {
+		if err := oldLogger.Close(); err != nil {
+			return fmt.Errorf("关闭日志文件失败: %w", err)
+		}
+	}
+	if a.logPath != "" {
+		if err := os.Remove(a.logPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("删除日志文件失败: %w", err)
+		}
+	}
+
+	newLogger, err := logger.NewManager(a.cfg.Log, a.logPath)
+	if err != nil {
+		return fmt.Errorf("重新创建日志管理器失败: %w", err)
+	}
+	a.logger = newLogger
+	a.subscribeLoggerLocked(newLogger)
+	if a.server != nil {
+		a.server.SetLogger(newLogger)
+	}
+	return nil
+}
+
 // GetTrayState returns the current tray/window integration state.
 func (a *App) GetTrayState() platform.TrayState {
 	a.mu.Lock()

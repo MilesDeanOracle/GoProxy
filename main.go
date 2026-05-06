@@ -13,7 +13,7 @@ import (
 var assets embed.FS
 
 const (
-	appTitle     = "GoProxy - V1.0.0"
+	appTitle     = "GoProxy"
 	windowWidth  = 1080
 	windowHeight = 720
 )

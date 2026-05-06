@@ -8,6 +8,8 @@ import {stats} from '../models';
 
 export function AddUser(arg1:string,arg2:string):Promise<void>;
 
+export function ClearLogs():Promise<void>;
+
 export function CreateRouteFile(arg1:string):Promise<void>;
 
 export function DeleteRouteFile(arg1:string):Promise<void>;

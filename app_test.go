@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"net"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -75,6 +76,28 @@ func TestAppStartStopAndLogs(t *testing.T) {
 	}
 	if !foundStart {
 		t.Fatalf("expected start log, got %#v", logs)
+	}
+}
+
+func TestAppClearLogsDeletesFileAndRing(t *testing.T) {
+	app := newTestApp(t)
+
+	app.logger.Info(appSource, "待清空日志")
+	if _, err := os.Stat(app.logPath); err != nil {
+		t.Fatalf("expected log file before clear: %v", err)
+	}
+	if len(app.GetRecentLogs(10)) == 0 {
+		t.Fatal("expected in-memory logs before clear")
+	}
+
+	if err := app.ClearLogs(); err != nil {
+		t.Fatalf("clear logs: %v", err)
+	}
+	if len(app.GetRecentLogs(10)) != 0 {
+		t.Fatalf("expected in-memory logs to be cleared, got %#v", app.GetRecentLogs(10))
+	}
+	if _, err := os.Stat(app.logPath); !os.IsNotExist(err) {
+		t.Fatalf("expected log file to be deleted, stat error: %v", err)
 	}
 }
 

@@ -27,7 +27,7 @@ input {
 }
 
 .app-shell {
-  --nav-w: 130px;
+  --nav-w: 160px;
   --bg: #010101;
   --bg2: #161b22;
   --bg3: #1e2530;
@@ -93,6 +93,13 @@ input {
   min-width: 0;
 }
 
+.status-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
 .nav-logo-title-row {
   display: flex;
   align-items: center;
@@ -115,8 +122,7 @@ input {
 }
 
 .nav-logo strong,
-.nav-logo small,
-.nav-ip-list {
+.nav-logo small {
   display: block;
 }
 
@@ -152,20 +158,27 @@ input {
   border-color: var(--border);
 }
 
-.nav-ip-list {
-  max-width: 152px;
-  margin-top: 4px;
-  overflow: hidden;
-  color: var(--subtle);
-  font-family: var(--mono);
-  font-size: 9.5px;
-  line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.status-info-btn {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  color: var(--muted);
+  cursor: pointer;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 999px;
 }
 
-.nav-logo > .ip-panel {
-  display: none;
+.status-info-btn:hover {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+}
+
+.status-info-btn .n-icon {
+  font-size: 12px;
 }
 
 .nav {
@@ -258,16 +271,18 @@ input {
 
 }
 
-.ip-panel {
-  padding: 9px;
+.version-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 9px;
   background: color-mix(in srgb, var(--bg3) 72%, transparent);
   border: 1px solid var(--border);
   border-radius: 8px;
 }
 
-.ip-title {
-  display: block;
-  margin-bottom: 7px;
+.version-label {
   color: var(--muted);
   font-family: var(--mono);
   font-size: 9.5px;
@@ -275,13 +290,14 @@ input {
   text-transform: uppercase;
 }
 
-.ip-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
+.version-value {
+  flex: 0 0 auto;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 650;
 }
 
-.ip-chip,
 .ip-empty {
   min-width: 0;
   color: var(--text);
@@ -290,20 +306,45 @@ input {
   line-height: 1.3;
 }
 
-.ip-chip {
+.ip-empty {
+  display: block;
+  color: var(--subtle);
+}
+
+.ip-popover {
+  width: 220px;
+}
+
+.ip-popover-title {
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ip-popover-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 180px;
+  overflow: auto;
+}
+
+.ip-popover-chip {
   max-width: 100%;
-  padding: 3px 6px;
+  padding: 4px 7px;
   overflow: hidden;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.3;
   text-overflow: ellipsis;
   white-space: nowrap;
   background: color-mix(in srgb, var(--accent) 10%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
   border-radius: 4px;
-}
-
-.ip-empty {
-  display: block;
-  color: var(--subtle);
 }
 
 .main {
@@ -1489,7 +1530,6 @@ input {
   }
 
   .nav-logo div,
-  .nav-ip-list,
   .nav-section,
   .nav-item span:not(.nav-badge),
   .nav-status {

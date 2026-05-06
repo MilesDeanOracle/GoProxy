@@ -109,15 +109,16 @@ func (m *Manager) Close() error {
 	if m == nil || m.zapLogger == nil {
 		return nil
 	}
+	var syncErr error
 	if err := m.zapLogger.Sync(); err != nil && !isIgnorableSyncError(err) {
-		return err
+		syncErr = err
 	}
 	for _, closer := range m.closers {
 		if err := closer.Close(); err != nil {
 			return err
 		}
 	}
-	return nil
+	return syncErr
 }
 
 func (m *Manager) log(level, source, message string, fields ...zap.Field) {
@@ -205,5 +206,7 @@ func buildWriteSyncer(cfg config.LogConfig, logPath string) (zapcore.WriteSyncer
 func isIgnorableSyncError(err error) bool {
 	msg := strings.ToLower(err.Error())
 	return strings.Contains(msg, "invalid argument") ||
-		strings.Contains(msg, "inappropriate ioctl")
+		strings.Contains(msg, "inappropriate ioctl") ||
+		strings.Contains(msg, "handle is invalid") ||
+		strings.Contains(msg, "bad file descriptor")
 }

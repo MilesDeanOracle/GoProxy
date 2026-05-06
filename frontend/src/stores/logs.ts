@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { getRecentLogs } from '../backend/api'
+import { clearLogs, getRecentLogs } from '../backend/api'
 import type { LogEntry } from '../types'
 import { friendlyError } from '../utils/errors'
 
@@ -12,6 +12,7 @@ export const useLogStore = defineStore('logs', () => {
   const keyword = ref('')
   const autoScroll = ref(true)
   const loading = ref(false)
+  const clearing = ref(false)
   const error = ref('')
 
   const filteredEntries = computed(() => {
@@ -45,8 +46,17 @@ export const useLogStore = defineStore('logs', () => {
     }
   }
 
-  function clearDisplay() {
-    entries.value = []
+  async function clearDisplay() {
+    clearing.value = true
+    error.value = ''
+    try {
+      await clearLogs()
+      entries.value = []
+    } catch (err) {
+      error.value = friendlyError(err)
+    } finally {
+      clearing.value = false
+    }
   }
 
   return {
@@ -56,6 +66,7 @@ export const useLogStore = defineStore('logs', () => {
     keyword,
     autoScroll,
     loading,
+    clearing,
     error,
     load,
     append,

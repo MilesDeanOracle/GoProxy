@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import {
   BarChart3,
   FileText,
+  Info,
   LayoutDashboard,
   Moon,
   Network,
@@ -14,7 +15,7 @@ import {
   Square,
   Sun
 } from 'lucide-vue-next'
-import { darkTheme, NConfigProvider, NDialogProvider, NIcon, NMessageProvider } from 'naive-ui'
+import { darkTheme, NConfigProvider, NDialogProvider, NIcon, NMessageProvider, NPopover } from 'naive-ui'
 import { getLocalIPAddresses, onEvent } from './backend/api'
 import Dashboard from './pages/Dashboard.vue'
 import ActiveConnectionsPage from './pages/ActiveConnectionsPage.vue'
@@ -80,6 +81,7 @@ const activePage = ref<PageKey>(enabledKeys.includes(initialHash) ? initialHash 
 const systemDark = ref(window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? true)
 const serverActionLocked = ref(false)
 const localIPs = ref<string[]>([])
+const appVersion = 'V1.0.0'
 
 const currentTheme = computed<'dark' | 'light'>(() => {
   const selected = config.draft?.ui.theme ?? 'dark'
@@ -161,10 +163,25 @@ onMounted(async () => {
             <div class="nav-logo">
               <span class="live-dot" :class="{ stopped: !server.status.running }" />
               <div class="nav-logo-copy">
-
-                <span class="inline-status" :class="{ stopped: !server.status.running }">
+                <div class="status-line">
+                  <span class="inline-status" :class="{ stopped: !server.status.running }">
                     {{ server.status.running ? '服务运行中' : '服务已停止' }}
                   </span>
+                  <NPopover trigger="click" placement="right-start" :to="false">
+                    <template #trigger>
+                      <button class="status-info-btn" type="button" title="查看网卡 IP">
+                        <NIcon :component="Info" />
+                      </button>
+                    </template>
+                    <div class="ip-popover">
+                      <div class="ip-popover-title">网卡 IP</div>
+                      <div v-if="localIPs.length > 0" class="ip-popover-list">
+                        <span v-for="ip in localIPs" :key="ip" class="ip-popover-chip">{{ ip }}</span>
+                      </div>
+                      <span v-else class="ip-empty">{{ localIPLabel }}</span>
+                    </div>
+                  </NPopover>
+                </div>
               </div>
             </div>
 
@@ -186,12 +203,9 @@ onMounted(async () => {
             </nav>
 
             <div class="nav-status">
-              <div class="ip-panel">
-                <span class="ip-title">网卡 IP</span>
-                <div v-if="localIPs.length > 0" class="ip-list">
-                  <span v-for="ip in localIPs" :key="ip" class="ip-chip" :title="ip">{{ ip }}</span>
-                </div>
-                <span v-else class="ip-empty">{{ localIPLabel }}</span>
+              <div class="version-panel">
+                <span class="version-label">版本</span>
+                <span class="version-value">{{ appVersion }}</span>
               </div>
             </div>
           </aside>

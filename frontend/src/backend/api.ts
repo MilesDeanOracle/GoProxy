@@ -10,6 +10,7 @@ import type {
 } from '../types'
 import {
   AddUser,
+  ClearLogs,
   CreateRouteFile,
   DeleteRouteFile,
   GetActiveConnections,
@@ -100,6 +101,10 @@ export function getActiveConnections() {
 
 export function getRecentLogs(n: number) {
   return GetRecentLogs(n) as unknown as Promise<LogEntry[]>
+}
+
+export function clearLogs() {
+  return ClearLogs()
 }
 
 export function setAuthEnabled(enabled: boolean) {

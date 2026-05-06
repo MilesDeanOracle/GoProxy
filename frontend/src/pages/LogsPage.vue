@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { Search, Trash2 } from 'lucide-vue-next'
-import { NButton, NCheckbox, NIcon, NInput } from 'naive-ui'
+import { NAlert, NButton, NCheckbox, NIcon, NInput } from 'naive-ui'
 import { useLogStore } from '../stores/logs'
 import type { LogEntry } from '../types'
 
@@ -120,7 +120,7 @@ watch(
             </template>
           </NInput>
           <NCheckbox v-model:checked="logs.autoScroll">自动滚动</NCheckbox>
-          <NButton secondary size="small" @click="logs.clearDisplay">
+          <NButton secondary size="small" :loading="logs.clearing" @click="logs.clearDisplay">
             <template #icon>
               <NIcon :component="Trash2" />
             </template>
@@ -128,6 +128,9 @@ watch(
           </NButton>
         </div>
       </div>
+      <NAlert v-if="logs.error" type="error" closable @close="logs.error = ''">
+        {{ logs.error }}
+      </NAlert>
 
       <div ref="scroller" class="log-list terminal-list">
         <template v-if="viewMode === 'route'">
