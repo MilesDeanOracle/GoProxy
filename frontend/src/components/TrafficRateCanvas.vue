@@ -27,6 +27,9 @@ let animId: number | null = null
 let resizeObserver: ResizeObserver | null = null
 let cachedBW = 0
 let cachedBH = 0
+let dispX: number[] = []
+let yAnimStart = -Infinity
+let yTrackedTime = ''
 
 function fmtBytes(v: number): string {
   if (v < 0.5) return '0 B'
@@ -150,8 +153,28 @@ function draw() {
   if (data.length < 2) { drawLegend(ctx); return }
 
   const n = data.length
-  const rawUp = Array.from({ length: n }, (_, i) => ({ x: pl + (i / (n - 1)) * pw, y: yOf(data[i].uploadRate) }))
-  const rawDn = Array.from({ length: n }, (_, i) => ({ x: pl + (i / (n - 1)) * pw, y: yOf(data[i].downloadRate) }))
+  const tx = (i: number) => pl + (i / (n - 1)) * pw
+
+  // Continuous x lerp — every frame moves 10% toward target
+  while (dispX.length < n) dispX.push(tx(dispX.length))
+  if (dispX.length > n) dispX.length = n
+  for (let i = 0; i < n; i++) dispX[i] += (tx(i) - dispX[i]) * 0.1
+
+  // Last point y: 500 ms smoothstep
+  const lt = data[n - 1].time
+  if (lt !== yTrackedTime) { yTrackedTime = lt; yAnimStart = performance.now() }
+  const yp = Math.min(1, (performance.now() - yAnimStart) / 500)
+  const ye = yp * yp * (3 - 2 * yp)
+  const prevUpY = yOf(data[n - 2].uploadRate)
+  const prevDnY = yOf(data[n - 2].downloadRate)
+  const lastUpY = prevUpY + (yOf(data[n - 1].uploadRate) - prevUpY) * ye
+  const lastDnY = prevDnY + (yOf(data[n - 1].downloadRate) - prevDnY) * ye
+  const rawUp = Array.from({ length: n }, (_, i) =>
+    i === n - 1 ? { x: dispX[i], y: lastUpY } : { x: dispX[i], y: yOf(data[i].uploadRate) }
+  )
+  const rawDn = Array.from({ length: n }, (_, i) =>
+    i === n - 1 ? { x: dispX[i], y: lastDnY } : { x: dispX[i], y: yOf(data[i].downloadRate) }
+  )
   const clamp = (p: { x: number; y: number }) => ({ x: p.x, y: Math.max(pt, Math.min(pb, p.y)) })
   const upSub = subdivide(rawUp).map(clamp)
   const dnSub = subdivide(rawDn).map(clamp)
