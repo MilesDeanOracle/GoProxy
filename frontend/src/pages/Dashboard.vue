@@ -1,17 +1,11 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, onUnmounted, ref, watch } from 'vue'
-import * as echarts from 'echarts/core'
-import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
-import { LineChart } from 'echarts/charts'
-import { CanvasRenderer } from 'echarts/renderers'
-import type { EChartsCoreOption, EChartsType } from 'echarts/core'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { NAlert, NSpin } from 'naive-ui'
 import { useConfigStore } from '../stores/config'
 import { useLogStore } from '../stores/logs'
 import { useServerStore } from '../stores/server'
+import TrafficRateCanvas from '../components/TrafficRateCanvas.vue'
 import type { LogEntry } from '../types'
-
-echarts.use([GridComponent, LegendComponent, TooltipComponent, LineChart, CanvasRenderer])
 
 const server = useServerStore()
 const config = useConfigStore()
@@ -21,10 +15,8 @@ const lastBytes = ref({ up: 0, down: 0 })
 const lastClientBytes = ref(new Map<string, { uploadBytes: number; downloadBytes: number }>())
 const clientRates = ref(new Map<string, { uploadRate: number; downloadRate: number }>())
 const chartTime = ref('--')
-const chartEl = ref<HTMLDivElement | null>(null)
 const logLevel = ref<'ALL' | LogEntry['level']>('ALL')
 let timer: number | undefined
-let chart: EChartsType | null = null
 
 const logTabs: Array<{ label: string; value: 'ALL' | LogEntry['level'] }> = [
   { label: '全部', value: 'ALL' },
@@ -127,74 +119,6 @@ function levelClass(level: LogEntry['level']) {
   return level.toLowerCase()
 }
 
-function renderChart() {
-  if (!chartEl.value) return
-  chart ??= echarts.init(chartEl.value)
-  const option: EChartsCoreOption = {
-    backgroundColor: 'transparent',
-    tooltip: {
-      trigger: 'axis',
-      formatter(params: unknown) {
-        const items = Array.isArray(params) ? params : [params]
-        return items
-          .map((item) => `${item.marker}${item.seriesName}: ${formatRate(Number(item.value))}`)
-          .join('<br/>')
-      }
-    },
-    legend: {
-      right: 10,
-      top: 4,
-      textStyle: { color: '#7d8590' }
-    },
-    grid: {
-      top: 42,
-      right: 20,
-      bottom: 26,
-      left: 54
-    },
-    xAxis: {
-      type: 'category',
-      boundaryGap: false,
-      data: server.trafficHistory.map((item) => item.time),
-      axisLabel: { color: '#7d8590', fontSize: 10 },
-      axisLine: { lineStyle: { color: '#2a3340' } },
-      axisTick: { show: false }
-    },
-    yAxis: {
-      type: 'value',
-      axisLabel: {
-        color: '#7d8590',
-        fontSize: 10,
-        formatter: (value: number) => formatBytes(value)
-      },
-      splitLine: { lineStyle: { color: 'rgba(125,133,144,0.18)' } }
-    },
-    series: [
-      {
-        name: '上传',
-        type: 'line',
-        smooth: true,
-        showSymbol: false,
-        data: server.trafficHistory.map((item) => item.uploadRate),
-        lineStyle: { color: '#3b82f6', width: 2 }
-      },
-      {
-        name: '下载',
-        type: 'line',
-        smooth: true,
-        showSymbol: false,
-        data: server.trafficHistory.map((item) => item.downloadRate),
-        lineStyle: { color: '#f59e0b', width: 2 }
-      }
-    ]
-  }
-  chart?.setOption(option)
-}
-
-function resizeChart() {
-  chart?.resize()
-}
-
 async function tick() {
   await server.refresh()
   lastBytes.value = { up: server.stats.uploadBytes, down: server.stats.downloadBytes }
@@ -224,23 +148,13 @@ function updateClientRates() {
   lastClientBytes.value = totals
 }
 
-watch(() => server.trafficHistory, () => nextTick(renderChart), { deep: true })
-
 onMounted(async () => {
   await Promise.all([server.refresh(), logs.load()])
   lastBytes.value = { up: server.stats.uploadBytes, down: server.stats.downloadBytes }
   updateClientRates()
-  renderChart()
-  window.addEventListener('resize', resizeChart)
   timer = window.setInterval(() => {
     void tick()
   }, 1000)
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', resizeChart)
-  chart?.dispose()
-  chart = null
 })
 
 onUnmounted(() => {
@@ -288,7 +202,7 @@ onUnmounted(() => {
               <h3>实时流量速率</h3>
               <span class="tag ml">{{ chartTime }}</span>
             </div>
-            <div ref="chartEl" class="echarts-panel" />
+            <TrafficRateCanvas :data="server.trafficHistory" class="echarts-panel" />
           </section>
         </div>
 
