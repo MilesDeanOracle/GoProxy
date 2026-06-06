@@ -6,12 +6,16 @@
 # ---------- 可配置变量 ----------
 MODULE       := gitee.com/jiuhuidalan1/goproxy
 GO           := go
+NPM          := npm
 GOFLAGS      :=
 LDFLAGS      := -s -w
 FRONTEND_DIR := frontend
 BUILD_DIR    := build
 CONFIG_FILE  := config.yaml
 LISTEN_ADDR  ?= 0.0.0.0:9090
+GO_BIN_DIR   ?= $(shell GOBIN=`$(GO) env GOBIN`; if [ -n "$$GOBIN" ]; then printf "%s" "$$GOBIN"; else printf "%s/bin" "`$(GO) env GOPATH`"; fi)
+WAILS        ?= $(shell command -v wails 2>/dev/null || printf "%s/wails" "$(GO_BIN_DIR)")
+WAILS_VERSION ?= $(shell awk '/github.com\/wailsapp\/wails\/v2/ {print $$2; exit}' go.mod)
 
 # 颜色输出（终端支持时生效）
 BLUE   := \033[0;34m
@@ -41,9 +45,11 @@ help: ## 📋 显示此帮助信息
 	@echo "  $(GREEN)make dev-wails$(RESET)         — 启动 Wails 桌面应用开发模式（需安装 Wails CLI）"
 	@echo ""
 	@echo "$(CYAN)$(BOLD)  依赖安装$(RESET)"
-	@echo "  $(GREEN)make install$(RESET)           — 安装前端 + 后端全部依赖"
+	@echo "  $(GREEN)make install$(RESET)           — 安装前端 + 后端 + Wails CLI 全部依赖"
+	@echo "  $(GREEN)make install-all$(RESET)       — 安装前端 + 后端 + Wails CLI 全部依赖"
 	@echo "  $(GREEN)make install-frontend$(RESET)   — 仅安装前端 npm 依赖"
 	@echo "  $(GREEN)make install-backend$(RESET)    — 仅安装后端 Go 依赖"
+	@echo "  $(GREEN)make install-wails-cli$(RESET)  — 仅安装 Wails CLI"
 	@echo ""
 	@echo "$(CYAN)$(BOLD)  构建编译$(RESET)"
 	@echo "  $(GREEN)make build$(RESET)             — 构建前端 + 编译 Web 服务端二进制"
@@ -71,19 +77,33 @@ help: ## 📋 显示此帮助信息
 # ============================================================
 #  依赖安装
 # ============================================================
-.PHONY: install install-frontend install-backend
+.PHONY: install install-all install-frontend install-backend install-tools install-wails-cli
 
-install: install-frontend install-backend ## 安装全部依赖
+install: install-frontend install-backend install-tools ## 安装全部依赖
+
+install-all: install ## 安装全部依赖
 
 install-frontend: ## 安装前端 npm 依赖
 	@echo "$(BOLD)$(BLUE)==> 安装前端依赖...$(RESET)"
-	cd $(FRONTEND_DIR) && npm install --prefer-offline
+	cd $(FRONTEND_DIR) && if [ -f package-lock.json ]; then $(NPM) ci --prefer-offline; else $(NPM) install --prefer-offline; fi
 	@echo "$(BOLD)$(GREEN)==> 前端依赖安装完成$(RESET)"
 
 install-backend: ## 整理后端 Go 依赖
 	@echo "$(BOLD)$(BLUE)==> 整理后端依赖...$(RESET)"
 	$(GO) mod download
 	@echo "$(BOLD)$(GREEN)==> 后端依赖就绪$(RESET)"
+
+install-tools: install-wails-cli ## 安装开发工具依赖
+
+install-wails-cli: ## 安装 Wails CLI
+	@echo "$(BOLD)$(BLUE)==> 检查 Wails CLI...$(RESET)"
+	@if [ -x "$(WAILS)" ]; then \
+		echo "$(BOLD)$(GREEN)==> Wails CLI 已就绪: $(WAILS)$(RESET)"; \
+	else \
+		echo "$(BOLD)$(BLUE)==> 安装 Wails CLI $(WAILS_VERSION)...$(RESET)"; \
+		$(GO) install github.com/wailsapp/wails/v2/cmd/wails@$(WAILS_VERSION); \
+		echo "$(BOLD)$(GREEN)==> Wails CLI 安装完成: $(GO_BIN_DIR)/wails$(RESET)"; \
+	fi
 
 # ============================================================
 #  开发环境
@@ -105,9 +125,9 @@ dev-webserver: build-frontend ## 仅启动后端 Web 服务
 	@echo "$(BOLD)$(CYAN)==> 启动 Web 服务，监听 $(LISTEN_ADDR)...$(RESET)"
 	$(GO) run ./cmd/webserver -listen $(LISTEN_ADDR) -static $(CURDIR)/$(FRONTEND_DIR)/dist
 
-dev-wails: ## 启动 Wails 桌面应用开发模式
+dev-wails: install-wails-cli ## 启动 Wails 桌面应用开发模式
 	@echo "$(BOLD)$(CYAN)==> 启动 Wails 开发模式...$(RESET)"
-	wails dev
+	$(WAILS) dev
 
 # ============================================================
 #  构建编译
@@ -133,9 +153,9 @@ build-cli: ## 编译命令行代理服务
 	$(GO) build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o $(BUILD_DIR)/goproxy-cli ./cmd/proxycli/
 	@echo "$(BOLD)$(GREEN)==> 编译完成: $(BUILD_DIR)/goproxy-cli$(RESET)"
 
-build-wails: build-frontend ## 构建 Wails 桌面应用
+build-wails: install-wails-cli build-frontend ## 构建 Wails 桌面应用
 	@echo "$(BOLD)$(BLUE)==> 构建 Wails 桌面应用...$(RESET)"
-	wails build
+	$(WAILS) build
 	@echo "$(BOLD)$(GREEN)==> Wails 构建完成$(RESET)"
 
 build-linux: build-frontend ## 交叉编译 Linux amd64 并打包
