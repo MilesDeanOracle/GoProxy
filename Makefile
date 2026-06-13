@@ -60,6 +60,7 @@ help: ## 📋 显示此帮助信息
 	@echo "  $(GREEN)make build-webserver$(RESET)    — 仅编译 Web 服务端"
 	@echo "  $(GREEN)make build-cli$(RESET)          — 仅编译命令行代理服务"
 	@echo "  $(GREEN)make build-wails$(RESET)        — 构建 Wails 桌面应用"
+	@echo "  $(GREEN)make docker-build$(RESET)       — 构建 Docker 镜像（Web 管理端 + 代理端口）"
 	@echo ""
 	@echo "$(CYAN)$(BOLD)  Linux 交叉编译$(RESET)"
 	@echo "  $(GREEN)make build-linux$(RESET)        — 交叉编译 Linux amd64 并打包部署目录"

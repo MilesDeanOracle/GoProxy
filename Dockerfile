@@ -27,7 +27,7 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -ldflags="-s -w" -o /out/goproxy-webserver ./cmd/webserver/
 
 
-FROM debian:bookworm-slim AS runtime
+FROM ubuntu:24.04 AS runtime
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
