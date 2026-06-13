@@ -1,0 +1,16 @@
+.git
+.claude
+build
+tmp
+logs
+images
+frontend/dist
+frontend/node_modules
+node_modules
+*.exe
+goproxy
+webserver.exe
+*.log
+*.db
+*.db-shm
+*.db-wal

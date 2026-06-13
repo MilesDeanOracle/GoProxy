@@ -7,12 +7,15 @@
 MODULE       := gitee.com/jiuhuidalan1/goproxy
 GO           := go
 NPM          := npm
+DOCKER       := docker
 GOFLAGS      :=
 LDFLAGS      := -s -w
 FRONTEND_DIR := frontend
 BUILD_DIR    := build
 CONFIG_FILE  := config.yaml
 LISTEN_ADDR  ?= 0.0.0.0:9090
+DOCKER_IMAGE ?= goproxy:latest
+DOCKER_PLATFORM ?=
 GO_BIN_DIR   ?= $(shell GOBIN=`$(GO) env GOBIN`; if [ -n "$$GOBIN" ]; then printf "%s" "$$GOBIN"; else printf "%s/bin" "`$(GO) env GOPATH`"; fi)
 WAILS        ?= $(shell command -v wails 2>/dev/null || printf "%s/wails" "$(GO_BIN_DIR)")
 WAILS_VERSION ?= $(shell awk '/github.com\/wailsapp\/wails\/v2/ {print $$2; exit}' go.mod)
@@ -132,7 +135,7 @@ dev-wails: install-wails-cli ## 启动 Wails 桌面应用开发模式
 # ============================================================
 #  构建编译
 # ============================================================
-.PHONY: build build-frontend build-webserver build-cli build-wails build-linux
+.PHONY: build build-frontend build-webserver build-cli build-wails build-linux docker-build
 
 build: build-frontend build-webserver ## 构建前端 + Web 服务端
 
@@ -175,6 +178,19 @@ build-linux: build-frontend ## 交叉编译 Linux amd64 并打包
 	@echo "  3. 启动服务: ./goproxy-webserver"
 	@echo "  4. 浏览器访问: http://<服务器IP>:9090"
 	@echo "  5. 默认账号: admin / admin"
+
+docker-build: ## 构建 Docker 镜像（Web 管理端 + SOCKS5 + HTTP 代理端口）
+	@echo "$(BOLD)$(BLUE)==> 构建 Docker 镜像 $(DOCKER_IMAGE)...$(RESET)"
+	$(DOCKER) build $(if $(DOCKER_PLATFORM),--platform $(DOCKER_PLATFORM),) -t $(DOCKER_IMAGE) .
+	@echo "$(BOLD)$(GREEN)==> Docker 镜像构建完成: $(DOCKER_IMAGE)$(RESET)"
+	@echo ""
+	@echo "$(BOLD)$(YELLOW)  运行示例:$(RESET)"
+	@echo "  docker run -d --name goproxy \\"
+	@echo "    -p 9090:9090 \\"
+	@echo "    -p 1080:1080 \\"
+	@echo "    -p 8080:8080 \\"
+	@echo "    -v goproxy-data:/app/configs \\"
+	@echo "    $(DOCKER_IMAGE)"
 
 # ============================================================
 #  测试 & 检查
